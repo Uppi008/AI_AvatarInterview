@@ -5,19 +5,29 @@ from .base import *  # noqa: F401,F403
 
 DEBUG = False
 
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+# Off by default: docs/DEPLOYMENT.md deploys over plain HTTP first and adds
+# TLS as a follow-up step, and the Docker healthcheck hits this container
+# directly (no proxy, no X-Forwarded-Proto). Turning these on before a real
+# HTTPS listener exists in front of the app causes a redirect loop -- every
+# request, including the healthcheck, gets 301'd to an https:// endpoint
+# that doesn't exist yet. Set DJANGO_SECURE_SSL_REDIRECT=True in .env once
+# nginx's :443 server block (docker/nginx/nginx.prod.conf) is live.
+SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=False)  # noqa: F405
+SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
+CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
+SECURE_HSTS_SECONDS = 31536000 if SECURE_SSL_REDIRECT else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_SSL_REDIRECT
+SECURE_HSTS_PRELOAD = SECURE_SSL_REDIRECT
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
+# Nginx serves /static/ and /media/ directly (see docker/nginx/nginx.conf) --
+# Django never serves them itself in production, so no whitenoise. Manifest
+# storage still gives collectstatic content-hashed filenames for cache-busting.
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"},
 }
 
 if env.bool("USE_S3", default=False):  # noqa: F405

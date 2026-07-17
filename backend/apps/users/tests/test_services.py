@@ -5,7 +5,7 @@ from django.core import mail
 from django.utils import timezone
 
 from apps.users import services
-from apps.users.models import EmailVerificationToken, PasswordResetToken, StudentProfile, User
+from apps.users.models import EmailVerificationToken, PasswordResetToken, StudentProfile
 
 pytestmark = pytest.mark.django_db
 

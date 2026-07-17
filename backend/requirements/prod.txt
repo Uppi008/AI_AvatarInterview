@@ -1,6 +1,7 @@
 -r base.txt
 
-gunicorn==22.0.0
+# No WSGI server (gunicorn) here: the app needs an ASGI server for
+# WebSocket support (the live interview), so daphne (already in base.txt)
+# is what actually runs in production too -- see docker-compose.prod.yml.
 sentry-sdk==2.7.0
 django-storages[boto3]==1.14.3
-whitenoise==6.6.0

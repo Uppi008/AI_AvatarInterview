@@ -12,7 +12,7 @@ Each phase produces real, runnable artifacts — reviewed before moving to the n
 | 6 | Avatar system — catalog, persona config, voice mapping, selection UI | ✅ Done |
 | 7 | Camera monitoring — MediaPipe/OpenCV proctoring, alert system, auto-terminate | ✅ Done |
 | 8 | Testing — backend (pytest-django) and frontend (Vitest/RTL) suites | ✅ Done |
-| 9 | Deployment — production Docker images, Nginx, prod settings, CI | ⬜ Not started |
+| 9 | Deployment — production Docker images, Nginx, prod settings, CI | ✅ Done |
 | 10 | Documentation — API reference, deployment guide, developer guide | ⬜ Not started |
 
 ## Notes / decisions locked in during Phase 1
@@ -65,6 +65,16 @@ cd frontend && npm test
 40 tests, ~77% coverage on exercised modules. Covers: `authSlice`/`uiSlice` reducers, `getApiErrorMessage`/`tokenStorage`, `LoginForm`/`RegisterForm` validation (zod schemas) and error surfacing, `Button`, `ViolationBanner`, and — the most valuable one — `useInterviewSocket`, including a permanent regression test that reproduces the React StrictMode double-connection scenario from Phase 7 and asserts a stale socket's late `onerror` never overwrites the current connection's state.
 
 Neither suite touches the real Groq/edge-tts/Redis/Postgres services — everything is mocked or run against SQLite/in-memory channel layers, so both run in seconds with no external dependencies. That also means these tests do **not** re-verify the "does the real Groq API return sensible completions" question — only Phase 5/6/7's manual browser testing (documented above) did that, and only for what a real key was never available to actually exercise.
+
+## Deployment (Phase 9)
+
+`docker-compose.prod.yml` + `docker/nginx/nginx.prod.conf` are the production stack: `db`/`redis` have no published ports (internal-only), `backend` builds with `requirements/prod.txt` and runs `migrate` → `collectstatic` → `daphne` (ASGI, for the live-interview WebSocket) on every start, `frontend` builds via its `production` Docker stage (own nginx serving the static SPA build), and the top-level `nginx` is the sole public entry point, adding security headers, gzip, and an extra rate limit on `/api/v1/auth/` on top of DRF's own throttling. Full walkthrough in [DEPLOYMENT.md](DEPLOYMENT.md).
+
+`.github/workflows/ci.yml` runs backend (pytest+coverage+ruff+migration-drift check) and frontend (typecheck+lint+Vitest+build) in parallel on every push/PR to `main`, then sanity-builds both production Docker images. It does not deploy anywhere — no target host/registry was available to wire that up against.
+
+**A real bug was caught by actually running the production stack**, not just building it: `config/settings/prod.py` originally hardcoded `SECURE_SSL_REDIRECT = True`, which redirect-loops every single request (including the Docker healthcheck) to `https://` before any TLS listener exists — exactly the sequence [DEPLOYMENT.md](DEPLOYMENT.md) describes (deploy over HTTP first, add TLS as a follow-up). Fixed by making it `DJANGO_SECURE_SSL_REDIRECT`-gated (default `False`); flip it on only after nginx's `:443` block has real certs. `SESSION_COOKIE_SECURE`/`CSRF_COOKIE_SECURE`/HSTS now follow the same flag.
+
+With that fixed, the full stack was verified running for real: `docker compose -f docker-compose.prod.yml up -d --build` brought up all 7 containers healthy, `/healthz/` and the SPA both returned 200 through nginx, and a real registration request hit real Postgres, queued a real Celery task over real Redis (not eager/mocked mode, unlike every other test in this build), and correctly attempted-and-retried real SMTP against the placeholder credentials in `.env.example` — proving the async pipeline works with real infrastructure end to end, not just against test doubles.
 
 ## How to resume this build in a future session
 

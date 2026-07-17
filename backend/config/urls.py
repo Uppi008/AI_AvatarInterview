@@ -4,7 +4,10 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from .views import health_check
+
 urlpatterns = [
+    path("healthz/", health_check, name="health-check"),
     path("django-admin/", admin.site.urls),
     # --- API schema / docs ---
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

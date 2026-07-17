@@ -1,0 +1,46 @@
+# --- Python / Django ---
+__pycache__/
+*.py[cod]
+*.sqlite3
+/backend/media/
+/backend/static/
+/backend/staticfiles/
+.venv/
+venv/
+env/
+*.egg-info/
+celerybeat-schedule
+celerybeat.pid
+
+# --- Node / React ---
+node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/coverage/
+
+# --- Env / Secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Docker ---
+docker/postgres/data/
+docker/redis/data/
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Test / Coverage ---
+.coverage
+htmlcov/
+.pytest_cache/

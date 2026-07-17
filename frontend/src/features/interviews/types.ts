@@ -5,6 +5,7 @@ export interface InterviewSession {
   id: string;
   avatar: string;
   avatar_name: string;
+  avatar_image: string;
   language: "en" | "hi" | "te";
   status: InterviewStatus;
   scheduled_at: string | null;

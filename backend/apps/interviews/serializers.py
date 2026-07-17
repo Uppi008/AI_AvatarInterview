@@ -34,11 +34,12 @@ class InterviewQuestionSerializer(serializers.ModelSerializer):
 
 class InterviewSessionListSerializer(serializers.ModelSerializer):
     avatar_name = serializers.CharField(source="avatar.name", read_only=True)
+    avatar_image = serializers.ImageField(source="avatar.image", read_only=True)
 
     class Meta:
         model = InterviewSession
         fields = [
-            "id", "avatar", "avatar_name", "language", "status",
+            "id", "avatar", "avatar_name", "avatar_image", "language", "status",
             "scheduled_at", "started_at", "ended_at", "duration_seconds", "violation_count",
         ]
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { Video } from "lucide-react";
 
+import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
@@ -10,6 +12,7 @@ import type { InterviewSessionDetail } from "../types";
 
 export function InterviewSessionPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [session, setSession] = useState<InterviewSessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,21 +42,33 @@ export function InterviewSessionPage() {
     );
   }
 
+  const isLive = session.status === "in_progress";
+  const isFinished = session.status === "completed" || session.status === "terminated";
+
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-6">
         <Card>
           <CardHeader>
             <CardTitle>{session.avatar_name}</CardTitle>
+            {isLive && (
+              <Button size="sm" onClick={() => navigate(`/interviews/${session.id}/live`)}>
+                <Video className="h-4 w-4" />
+                Rejoin live interview
+              </Button>
+            )}
           </CardHeader>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Status: <span className="font-medium capitalize">{session.status.replace("_", " ")}</span>
+            {session.termination_reason && (
+              <span className="block text-red-500 dark:text-red-400">{session.termination_reason}</span>
+            )}
           </p>
-          <p className="mt-4 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
-            The live voice/video interview experience (the avatar speaking questions, listening
-            for your answers, and real-time face monitoring) ships in Phase 7. For now, here's the
-            question bank AI_AvatarInterview generated for this session.
-          </p>
+          {isFinished && (
+            <p className="mt-4 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
+              Your full scorecard is being generated and will be emailed to you shortly.
+            </p>
+          )}
         </Card>
 
         <Card>
@@ -73,6 +88,7 @@ export function InterviewSessionPage() {
                   <p className="mt-1 text-sm text-slate-800 dark:text-slate-200">
                     {i + 1}. {q.question_text}
                   </p>
+                  {q.skipped && <p className="mt-1 text-xs italic text-slate-400">Skipped</p>}
                 </li>
               ))}
             </ol>

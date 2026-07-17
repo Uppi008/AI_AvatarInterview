@@ -10,6 +10,7 @@ import { AvatarSelectionPage } from "@/features/avatars/pages/AvatarSelectionPag
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { InterviewSessionPage } from "@/features/interviews/pages/InterviewSessionPage";
 import { InterviewsPage } from "@/features/interviews/pages/InterviewsPage";
+import { LiveInterviewPage } from "@/features/interviews/pages/LiveInterviewPage";
 import { ResumePage } from "@/features/resume/pages/ResumePage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { useAuthBootstrap } from "@/hooks/useAuthBootstrap";
@@ -65,6 +66,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <InterviewSessionPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/interviews/:id/live"
+          element={
+            <ProtectedRoute>
+              <LiveInterviewPage />
             </ProtectedRoute>
           }
         />

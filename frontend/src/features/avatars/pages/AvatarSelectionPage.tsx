@@ -43,7 +43,7 @@ export function AvatarSelectionPage() {
     setStartingId(avatar.id);
     try {
       const { data: session } = await interviewsApi.start({ avatar_id: avatar.id, language });
-      navigate(`/interviews/${session.id}`);
+      navigate(`/interviews/${session.id}/live`);
     } catch (err) {
       setError(getApiErrorMessage(err, "Couldn't start the interview. Please try again."));
       setStartingId(null);

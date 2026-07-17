@@ -13,7 +13,7 @@ Each phase produces real, runnable artifacts — reviewed before moving to the n
 | 7 | Camera monitoring — MediaPipe/OpenCV proctoring, alert system, auto-terminate | ✅ Done |
 | 8 | Testing — backend (pytest-django) and frontend (Vitest/RTL) suites | ✅ Done |
 | 9 | Deployment — production Docker images, Nginx, prod settings, CI | ✅ Done |
-| 10 | Documentation — API reference, deployment guide, developer guide | ⬜ Not started |
+| 10 | Documentation — API reference, deployment guide, developer guide | ✅ Done |
 
 ## Notes / decisions locked in during Phase 1
 
@@ -76,6 +76,12 @@ Neither suite touches the real Groq/edge-tts/Redis/Postgres services — everyth
 
 With that fixed, the full stack was verified running for real: `docker compose -f docker-compose.prod.yml up -d --build` brought up all 7 containers healthy, `/healthz/` and the SPA both returned 200 through nginx, and a real registration request hit real Postgres, queued a real Celery task over real Redis (not eager/mocked mode, unlike every other test in this build), and correctly attempted-and-retried real SMTP against the placeholder credentials in `.env.example` — proving the async pipeline works with real infrastructure end to end, not just against test doubles.
 
-## How to resume this build in a future session
+## Documentation (Phase 10)
 
-Read this file plus [ARCHITECTURE.md](ARCHITECTURE.md), then continue with the next `⬜ Not started` phase.
+[docs/API.md](API.md) (endpoint reference + the WebSocket protocol) and [docs/DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) (conventions, how to extend the app, and every hard-won gotcha from the notes above collected in one place) were added to close out the doc set; [README.md](../README.md), which had been left with Phase 1-era "not built yet" wording throughout, was rewritten to reflect the finished state. The stale root-level `tests/` placeholder from Phase 1 (empty — real tests ended up living in `backend/apps/*/tests/`, `backend/tests/`, and colocated in `frontend/src/`) was removed, and `scripts/` gained real `dev-setup.sh`/`.ps1` bootstrap scripts instead of sitting empty.
+
+Auditing for stale "Phase N" references as part of this cleanup turned up a real gap, not just wording: `apps/reports/services.py`'s `render_pdf()` was still a `NotImplementedError` stub, deferred with an inaccurate comment blaming "Phase 9" (which turned out to be about deployment infra, not report rendering) — Module 9 (PDF Report) was never actually finished. Fixed by implementing it for real with `reportlab`'s platypus API (already a pinned dependency, unused until now): a one-page report with the overall score, a sub-score table, and strengths/weaknesses/improvement-tips lists. `apps/reports/tasks.py`'s `render_and_email_report_task` now saves the rendered bytes to `InterviewReport.pdf_file` (previously that field was never written to, despite existing on the model since Phase 2) in addition to attaching the PDF to the results email. Verified with new tests (`apps/reports/tests/`) asserting the output is a well-formed, non-trivial PDF (`%PDF-` header, >500 bytes) and that the persisted `pdf_file` is readable back as one — backend suite is now 60 tests, still 91% coverage.
+
+## All 10 phases are complete
+
+Every module from the original spec is implemented and was verified running, not just written — see each phase's section above for exactly how. The known limitations (a real `GROQ_API_KEY` needed for AI features, uncalibrated face-monitoring angle thresholds, `edge-tts`'s fragility as an unofficial API) are documented above and in [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) rather than hidden — check there first if something doesn't work end-to-end.

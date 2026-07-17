@@ -160,6 +160,6 @@ erDiagram
 | `email_logs` | `(user_id, email_type)` | Resend/debug lookups |
 | `ai_model_configs` | partial unique `(purpose) WHERE is_active` | Enforce single active provider per AI task |
 
-## 5. Wiring into Django (Phase 3)
+## 5. Wiring into Django
 
-These model files aren't runnable yet on their own — Phase 3 adds the actual Django project (`config/settings`, `INSTALLED_APPS`, `AUTH_USER_MODEL = "users.User"`, each app's `apps.py`) and runs the first `makemigrations`/`migrate`. This phase's job was the schema design itself; Phase 3 is where it becomes a running database.
+The full Django project (`config/settings`, `INSTALLED_APPS`, `AUTH_USER_MODEL = "users.User"`, each app's `apps.py`) lives alongside these models — see [ARCHITECTURE.md](ARCHITECTURE.md) for the project layout. Run `python manage.py migrate` to apply the schema (the 10 built-in avatars and default admin config seed automatically via data migrations, `avatars/migrations/0003_seed_avatars.py` and `admin_panel/migrations/0002_seed_defaults.py`).

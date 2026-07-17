@@ -1,5 +1,3 @@
-import logging
-
 from celery import shared_task
 from django.utils import timezone
 
@@ -8,27 +6,19 @@ from apps.notifications.services import send_transactional_email
 
 from .models import InterviewReport
 
-logger = logging.getLogger(__name__)
-
 
 @shared_task(bind=True, max_retries=2)
 def render_and_email_report_task(self, *, report_id: str):
-    """Emails the finished report to the student (Module 9 + 10).
+    """Renders the finished report as a PDF, stores it, and emails it to the student."""
+    from django.core.files.base import ContentFile
 
-    Attaches the rendered PDF once `reports.services.render_pdf` is
-    implemented (Phase 9); until then it emails a plain-text summary so
-    the pipeline works end-to-end.
-    """
     report = InterviewReport.objects.select_related("session__student__user").get(id=report_id)
     user = report.session.student.user
 
-    pdf_bytes = None
-    try:
-        from .services import render_pdf
+    from .services import render_pdf
 
-        pdf_bytes = render_pdf(report)
-    except NotImplementedError:
-        logger.info("PDF rendering for report %s awaits Phase 9 polish.", report_id)
+    pdf_bytes = render_pdf(report)
+    report.pdf_file.save(f"{report.id}.pdf", ContentFile(pdf_bytes), save=False)
 
     message = (
         f"Hi {user.full_name},\n\n"
@@ -39,7 +29,7 @@ def render_and_email_report_task(self, *, report_id: str):
         "Log in to your dashboard for the full breakdown."
     )
 
-    attachment = ("interview_report.pdf", pdf_bytes, "application/pdf") if pdf_bytes else None
+    attachment = ("interview_report.pdf", pdf_bytes, "application/pdf")
     send_transactional_email(
         user=user,
         email_type=EmailLog.EmailType.INTERVIEW_REPORT,
@@ -49,4 +39,4 @@ def render_and_email_report_task(self, *, report_id: str):
         attachment=attachment,
     )
     report.emailed_at = timezone.now()
-    report.save(update_fields=["emailed_at"])
+    report.save(update_fields=["pdf_file", "emailed_at"])

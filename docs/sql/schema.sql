@@ -88,7 +88,7 @@ CREATE TABLE avatars (
                              'parent_style', 'corporate_recruiter'
                          )),
     image                VARCHAR(255) NOT NULL,
-    voice_id             VARCHAR(100) NOT NULL,
+    voice_map            JSONB NOT NULL DEFAULT '{}',
     speaking_style       VARCHAR(255) NOT NULL DEFAULT '',
     interview_style      TEXT NOT NULL DEFAULT '',
     difficulty           VARCHAR(10) NOT NULL DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard')),

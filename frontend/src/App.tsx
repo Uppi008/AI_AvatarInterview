@@ -6,7 +6,9 @@ import { AuthPage } from "@/features/auth/pages/AuthPage";
 import { ForgotPasswordPage } from "@/features/auth/pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "@/features/auth/pages/ResetPasswordPage";
 import { VerifyEmailPage } from "@/features/auth/pages/VerifyEmailPage";
+import { AvatarSelectionPage } from "@/features/avatars/pages/AvatarSelectionPage";
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
+import { InterviewSessionPage } from "@/features/interviews/pages/InterviewSessionPage";
 import { InterviewsPage } from "@/features/interviews/pages/InterviewsPage";
 import { ResumePage } from "@/features/resume/pages/ResumePage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
@@ -43,10 +45,26 @@ export default function App() {
           }
         />
         <Route
+          path="/avatars"
+          element={
+            <ProtectedRoute>
+              <AvatarSelectionPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/interviews"
           element={
             <ProtectedRoute>
               <InterviewsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/interviews/:id"
+          element={
+            <ProtectedRoute>
+              <InterviewSessionPage />
             </ProtectedRoute>
           }
         />

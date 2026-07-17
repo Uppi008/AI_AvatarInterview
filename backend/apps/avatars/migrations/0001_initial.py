@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
                 ('name', models.CharField(max_length=100)),
                 ('category', models.CharField(choices=[('hr_manager', 'HR Manager'), ('technical_interviewer', 'Technical Interviewer'), ('senior_manager', 'Senior Manager'), ('ceo', 'CEO'), ('female_hr', 'Female HR'), ('male_hr', 'Male HR'), ('friendly_brother', 'Friendly Brother'), ('friendly_sister', 'Friendly Sister'), ('parent_style', 'Parent Style'), ('corporate_recruiter', 'Corporate Recruiter')], max_length=30)),
                 ('image', models.ImageField(upload_to=apps.avatars.models.avatar_image_upload_path)),
-                ('voice_id', models.CharField(help_text='TTS voice identifier, e.g. an edge-tts voice name', max_length=100)),
+                ('voice_map', models.JSONField(default=dict, help_text="Per-language edge-tts voice IDs, e.g. {'en': 'en-US-JennyNeural', 'hi': 'hi-IN-SwaraNeural'}")),
                 ('speaking_style', models.CharField(blank=True, max_length=255)),
                 ('interview_style', models.TextField(blank=True)),
                 ('difficulty', models.CharField(choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], default='medium', max_length=10)),

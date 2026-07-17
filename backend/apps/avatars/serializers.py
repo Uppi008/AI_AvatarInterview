@@ -7,7 +7,7 @@ class AvatarSerializer(serializers.ModelSerializer):
     class Meta:
         model = Avatar
         fields = [
-            "id", "name", "category", "image", "voice_id", "speaking_style",
+            "id", "name", "category", "image", "voice_map", "speaking_style",
             "interview_style", "difficulty", "emotion_profile", "supported_languages",
         ]
 

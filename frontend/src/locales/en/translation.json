@@ -63,5 +63,16 @@
     "resume": "Resume",
     "settings": "Settings",
     "logout": "Log out"
+  },
+  "avatars": {
+    "title": "Choose your interviewer",
+    "subtitle": "Pick an AI avatar and language, and we'll start your interview right away.",
+    "language": "Language",
+    "difficulty": "Difficulty",
+    "all": "All",
+    "selectAndStart": "Select & start",
+    "customTitle": "Your custom avatar",
+    "customSubtitle": "Upload a photo to build a personalized avatar. This doesn't change who interviews you above — it's a preview of interviewing with your own face.",
+    "uploadPhoto": "Upload photo"
   }
 }

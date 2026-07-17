@@ -31,13 +31,20 @@ class Avatar(BaseModel):
     name = models.CharField(max_length=100)
     category = models.CharField(max_length=30, choices=Category.choices)
     image = models.ImageField(upload_to=avatar_image_upload_path)
-    voice_id = models.CharField(max_length=100, help_text="TTS voice identifier, e.g. an edge-tts voice name")
+    voice_map = models.JSONField(
+        default=dict,
+        help_text="Per-language edge-tts voice IDs, e.g. {'en': 'en-US-JennyNeural', 'hi': 'hi-IN-SwaraNeural'}",
+    )
     speaking_style = models.CharField(max_length=255, blank=True)
     interview_style = models.TextField(blank=True)
     difficulty = models.CharField(max_length=10, choices=Difficulty.choices, default=Difficulty.MEDIUM)
     emotion_profile = models.JSONField(default=dict, blank=True, help_text="Baseline expressiveness tuning for the avatar renderer")
     supported_languages = models.JSONField(default=list, help_text="e.g. ['en', 'hi', 'te']")
     is_active = models.BooleanField(default=True)
+
+    def voice_for(self, language: str) -> str:
+        """Resolves the TTS voice for a language, falling back to English."""
+        return self.voice_map.get(language) or self.voice_map.get("en", "")
 
     class Meta:
         db_table = "avatars"

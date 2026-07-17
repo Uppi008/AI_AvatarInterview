@@ -1,0 +1,49 @@
+# --- Core ---
+Django==5.0.6
+djangorestframework==3.15.1
+django-environ==0.11.2
+django-cors-headers==4.3.1
+django-filter==24.2
+psycopg2-binary==2.9.9
+
+# --- Auth ---
+djangorestframework-simplejwt==5.3.1
+google-auth==2.29.0
+
+# --- API docs ---
+drf-spectacular==0.27.2
+
+# --- Async / realtime ---
+channels==4.1.0
+channels-redis==4.2.0
+daphne==4.1.2
+redis==5.0.4
+
+# --- Background tasks ---
+celery==5.4.0
+django-celery-results==2.5.1
+
+# --- File parsing ---
+pypdf==4.2.0
+python-docx==1.1.2
+Pillow==10.3.0
+
+# --- AI / LLM (wired up fully in Phase 5) ---
+langchain==0.2.6
+langchain-groq==0.1.6
+groq==0.9.0
+
+# --- Speech (wired up fully in Phase 5) ---
+openai-whisper==20231117
+edge-tts==6.1.12
+
+# --- Computer vision (wired up fully in Phase 7) ---
+mediapipe==0.10.14
+opencv-python-headless==4.10.0.84
+numpy==1.26.4
+
+# --- PDF report generation ---
+reportlab==4.2.0
+
+# --- Utilities ---
+python-slugify==8.0.4

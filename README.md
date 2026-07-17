@@ -74,7 +74,7 @@ docker compose up --build     # postgres, redis, django, celery, react, nginx
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap / build phases](docs/ROADMAP.md)
-- [Database design](docs/DATABASE.md) *(Phase 2)*
+- [Database design](docs/DATABASE.md)
 - [API reference](docs/API.md) *(Phase 3)*
 - [Deployment guide](docs/DEPLOYMENT.md) *(Phase 9)*
 - [Developer guide](docs/DEVELOPER_GUIDE.md) *(Phase 10)*

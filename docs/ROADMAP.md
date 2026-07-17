@@ -4,8 +4,8 @@ Each phase produces real, runnable artifacts — reviewed before moving to the n
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Project architecture, folder scaffold, docs, docker-compose skeleton, env config | ✅ In progress |
-| 2 | Database design — Django models, ER diagram, SQL, indexes/constraints | ⬜ Not started |
+| 1 | Project architecture, folder scaffold, docs, docker-compose skeleton, env config | ✅ Done |
+| 2 | Database design — Django models, ER diagram, SQL, indexes/constraints | ✅ Done |
 | 3 | Backend — Django project, DRF apps, JWT auth, Swagger/OpenAPI docs | ⬜ Not started |
 | 4 | Frontend — Vite/React/TS scaffold, auth pages, dashboard shell | ⬜ Not started |
 | 5 | AI integration — LangChain + Groq, resume parsing, question generation, scoring | ⬜ Not started |

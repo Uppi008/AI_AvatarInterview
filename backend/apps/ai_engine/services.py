@@ -1,40 +1,349 @@
 """Single integration boundary for LLM/LangChain calls.
 
 Every other app talks to the LLM only through this module (never directly
-to Groq/LangChain), so swapping providers touches one file. See
-docs/ARCHITECTURE.md section 6 for the chain design.
+to Groq/LangChain), so swapping providers touches one file (llm_client.py).
+See docs/ARCHITECTURE.md section 6 for the chain design.
 
-Implemented in Phase 5 (AI Integration). Callers in Phase 3 (resumes,
-interviews) already call these functions and handle NotImplementedError
-so the pipeline is wired end-to-end ahead of the real implementation.
+Design note on report aggregation: numeric sub-scores that come from
+*text* (technical/communication/confidence/relevance) are produced by the
+per-answer evaluation chain. body_language_score and eye_contact_score are
+NOT asked of the LLM -- it has no way to actually observe those, and
+guessing would just be a plausible-looking hallucination. They're derived
+deterministically from apps.monitoring.ProctoringEvent counts instead; the
+LLM is only used for what it can legitimately do: synthesizing strengths/
+weaknesses/tips from the transcript.
 """
-from apps.resumes.models import Resume
+import logging
+
+from langchain_core.prompts import ChatPromptTemplate
+
+from .llm_client import get_chat_model
+from .schemas import (
+    AnswerEvaluationResult,
+    QuestionBankResult,
+    ReportSummaryResult,
+    ResumeExtractionResult,
+)
+
+logger = logging.getLogger(__name__)
+
+LANGUAGE_NAMES = {"en": "English", "hi": "Hindi", "te": "Telugu"}
+
+# ProctoringEvent types that penalize each derived score. Weights are a
+# simple, tunable heuristic given only discrete violation counts are
+# available today; Phase 7's richer per-frame vision metrics can replace
+# this with a real per-frame gaze/pose score later.
+EYE_CONTACT_EVENT_TYPES = ("looking_away", "head_rotation")
+EYE_CONTACT_PENALTY_PER_EVENT = 5
+BODY_LANGUAGE_EVENT_TYPES = ("no_face", "multiple_faces", "lip_movement_anomaly")
+BODY_LANGUAGE_PENALTY_PER_EVENT = 8
 
 
-def extract_resume_entities(resume: "Resume") -> None:
-    """Runs the resume-extraction chain: populates ResumeSkill, ResumeProject,
-    ResumeExperience, ResumeEducation, ResumeCertification, and ResumeInsight
-    for the given resume from its `raw_text`.
+def _language_name(code: str) -> str:
+    return LANGUAGE_NAMES.get(code, "English")
+
+
+# =====================================================================
+# Resume extraction
+# =====================================================================
+def extract_resume_entities(resume) -> None:
+    """Runs the resume-extraction chain and persists ResumeSkill,
+    ResumeProject, ResumeExperience, ResumeEducation, ResumeCertification,
+    and ResumeInsight from the resume's `raw_text`.
     """
-    raise NotImplementedError("Resume entity extraction lands in Phase 5.")
+    from apps.resumes.models import (
+        ResumeCertification,
+        ResumeEducation,
+        ResumeExperience,
+        ResumeInsight,
+        ResumeProject,
+        ResumeSkill,
+    )
+
+    if not resume.raw_text.strip():
+        raise ValueError("Resume has no extracted text to analyze yet.")
+
+    model = get_chat_model("resume_extraction").with_structured_output(ResumeExtractionResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are an expert technical recruiter. Extract structured information from "
+                "the resume text below. Be factual -- only include what is actually stated or "
+                "strongly implied; never invent employers, dates, or skills.",
+            ),
+            ("human", "Resume text:\n\n{resume_text}"),
+        ]
+    )
+    result: ResumeExtractionResult = (prompt | model).invoke({"resume_text": resume.raw_text[:12000]})
+
+    ResumeSkill.objects.filter(resume=resume).delete()
+    ResumeSkill.objects.bulk_create(
+        [ResumeSkill(resume=resume, name=s.name, category=s.category) for s in result.skills]
+    )
+
+    ResumeProject.objects.filter(resume=resume).delete()
+    ResumeProject.objects.bulk_create(
+        [
+            ResumeProject(
+                resume=resume,
+                title=p.title,
+                description=p.description,
+                technologies=p.technologies,
+                duration=p.duration,
+            )
+            for p in result.projects
+        ]
+    )
+
+    ResumeExperience.objects.filter(resume=resume).delete()
+    ResumeExperience.objects.bulk_create(
+        [
+            ResumeExperience(
+                resume=resume, company=e.company, role=e.role, description=e.description, is_current=e.is_current
+            )
+            for e in result.experiences
+        ]
+    )
+
+    ResumeEducation.objects.filter(resume=resume).delete()
+    ResumeEducation.objects.bulk_create(
+        [
+            ResumeEducation(
+                resume=resume, institution=ed.institution, degree=ed.degree, field_of_study=ed.field_of_study
+            )
+            for ed in result.education
+        ]
+    )
+
+    ResumeCertification.objects.filter(resume=resume).delete()
+    ResumeCertification.objects.bulk_create(
+        [ResumeCertification(resume=resume, name=c.name, issuer=c.issuer) for c in result.certifications]
+    )
+
+    ResumeInsight.objects.update_or_create(
+        resume=resume,
+        defaults={
+            "summary": result.summary,
+            "strengths": result.strengths,
+            "weaknesses": result.weaknesses,
+            "suggested_focus_areas": result.suggested_focus_areas,
+        },
+    )
 
 
+# =====================================================================
+# Question generation
+# =====================================================================
 def generate_question_bank(*, session) -> list:
     """Generates the initial ordered set of InterviewQuestion rows for a
-    session, based on the student's resume + the selected avatar's persona
-    and difficulty."""
-    raise NotImplementedError("Question generation lands in Phase 5.")
+    session, based on the student's resume + the selected avatar's persona,
+    difficulty, and language.
+    """
+    from apps.interviews.models import InterviewQuestion
+
+    avatar = session.avatar
+    resume = session.resume
+
+    resume_context = "No resume was provided; ask general and behavioral questions."
+    if resume:
+        skills = ", ".join(s.name for s in resume.skills.all()[:15])
+        projects = "; ".join(p.title for p in resume.projects.all()[:5])
+        experiences = "; ".join(f"{e.role} at {e.company}" for e in resume.experiences.all()[:5])
+        insight_summary = getattr(getattr(resume, "insight", None), "summary", "") or resume.raw_text[:1500]
+        resume_context = (
+            f"Skills: {skills or 'none listed'}\n"
+            f"Projects: {projects or 'none listed'}\n"
+            f"Experience: {experiences or 'none listed'}\n"
+            f"Resume summary: {insight_summary}"
+        )
+
+    model = get_chat_model("question_generation").with_structured_output(QuestionBankResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are {avatar_name}, a {category} conducting a mock job interview. "
+                "Your interview style: {interview_style}. Speaking style: {speaking_style}. "
+                "Target difficulty: {difficulty}. Respond entirely in {language}.\n\n"
+                "Generate a well-structured interview question bank: 2-3 resume-based questions "
+                "tailored to the candidate's actual background, 2-3 behavioral questions, and "
+                "(only if this persona is technical) 1-2 coding/problem-solving questions. "
+                "6 to 8 questions total, ordered from easier to harder.",
+            ),
+            ("human", "Candidate resume context:\n{resume_context}"),
+        ]
+    )
+    result: QuestionBankResult = (prompt | model).invoke(
+        {
+            "avatar_name": avatar.name,
+            "category": avatar.get_category_display(),
+            "interview_style": avatar.interview_style or "professional and structured",
+            "speaking_style": avatar.speaking_style or "clear and neutral",
+            "difficulty": avatar.difficulty,
+            "language": _language_name(session.language),
+            "resume_context": resume_context,
+        }
+    )
+
+    questions = [
+        InterviewQuestion(
+            session=session,
+            question_text=q.question_text,
+            question_type=q.question_type,
+            difficulty=q.difficulty,
+            order_index=i,
+        )
+        for i, q in enumerate(result.questions)
+    ]
+    return InterviewQuestion.objects.bulk_create(questions)
 
 
+# =====================================================================
+# Answer evaluation
+# =====================================================================
 def evaluate_answer(*, question, answer) -> dict:
-    """Scores a single answer (technical/communication/relevance/confidence)
-    and optionally proposes a follow-up question."""
-    raise NotImplementedError("Answer evaluation lands in Phase 5.")
+    """Scores a single answer and, for a top-level (non-follow-up) question
+    whose answer was vague or incomplete, creates one follow-up question.
+    """
+    from apps.interviews.models import AnswerEvaluation, InterviewQuestion
+
+    session = question.session
+    model = get_chat_model("answer_evaluation").with_structured_output(AnswerEvaluationResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are {avatar_name}, a {category} evaluating a candidate's interview answer. "
+                "Score fairly on a 0-100 scale for each dimension. Give concise, constructive "
+                "feedback in {language}. Only propose a follow-up question if the answer was "
+                "vague, incomplete, or invites a natural deeper probe -- otherwise leave it null.",
+            ),
+            ("human", "Question ({question_type}): {question_text}\n\nCandidate's answer:\n{answer_text}"),
+        ]
+    )
+    result: AnswerEvaluationResult = (prompt | model).invoke(
+        {
+            "avatar_name": session.avatar.name,
+            "category": session.avatar.get_category_display(),
+            "language": _language_name(session.language),
+            "question_type": question.question_type,
+            "question_text": question.question_text,
+            "answer_text": answer.transcript_text or "(no answer given)",
+        }
+    )
+
+    evaluation, _ = AnswerEvaluation.objects.update_or_create(
+        answer=answer,
+        defaults={
+            "technical_score": result.technical_score,
+            "communication_score": result.communication_score,
+            "relevance_score": result.relevance_score,
+            "confidence_score": result.confidence_score,
+            "feedback_text": result.feedback,
+        },
+    )
+
+    follow_up_question = None
+    if result.follow_up_question and question.parent_question_id is None:
+        next_order = InterviewQuestion.objects.filter(session=session).count()
+        follow_up_question = InterviewQuestion.objects.create(
+            session=session,
+            parent_question=question,
+            question_text=result.follow_up_question,
+            question_type=InterviewQuestion.QuestionType.FOLLOW_UP,
+            difficulty=question.difficulty,
+            order_index=next_order,
+        )
+
+    return {"evaluation": evaluation, "follow_up_question": follow_up_question}
 
 
+# =====================================================================
+# Report aggregation
+# =====================================================================
 def aggregate_session_report(*, session) -> dict:
     """Aggregates all per-answer evaluations + proctoring history into the
-    final InterviewReport fields (overall/communication/technical/confidence/
-    body_language/eye_contact/resume_matching scores, strengths, weaknesses,
-    improvement tips)."""
-    raise NotImplementedError("Report aggregation lands in Phase 5.")
+    final InterviewReport fields.
+    """
+    from django.db.models import Avg
+
+    from apps.interviews.models import AnswerEvaluation, InterviewQuestion
+
+    evaluations = AnswerEvaluation.objects.filter(answer__question__session=session)
+    if not evaluations.exists():
+        raise ValueError("No evaluated answers to aggregate for this session.")
+
+    aggregates = evaluations.aggregate(
+        technical=Avg("technical_score"),
+        communication=Avg("communication_score"),
+        confidence=Avg("confidence_score"),
+        relevance=Avg("relevance_score"),
+    )
+    technical = round(float(aggregates["technical"] or 0), 2)
+    communication = round(float(aggregates["communication"] or 0), 2)
+    confidence = round(float(aggregates["confidence"] or 0), 2)
+    relevance = round(float(aggregates["relevance"] or 0), 2)
+
+    resume_based = evaluations.filter(answer__question__question_type=InterviewQuestion.QuestionType.RESUME_BASED)
+    resume_based_avg = resume_based.aggregate(avg=Avg("relevance_score"))["avg"]
+    resume_matching = round(float(resume_based_avg if resume_based_avg is not None else relevance), 2)
+
+    body_language, eye_contact = _proctoring_derived_scores(session)
+
+    overall = round((technical + communication + confidence + body_language + eye_contact + resume_matching) / 6, 2)
+
+    summary = _summarize_session(session, evaluations)
+
+    return {
+        "overall_score": overall,
+        "communication_score": communication,
+        "technical_score": technical,
+        "confidence_score": confidence,
+        "body_language_score": body_language,
+        "eye_contact_score": eye_contact,
+        "resume_matching_score": resume_matching,
+        "strengths": summary.strengths,
+        "weaknesses": summary.weaknesses,
+        "improvement_tips": summary.improvement_tips,
+    }
+
+
+def _proctoring_derived_scores(session) -> tuple[float, float]:
+    from apps.monitoring.models import ProctoringEvent
+
+    events = ProctoringEvent.objects.filter(session=session)
+    eye_contact_penalty = events.filter(event_type__in=EYE_CONTACT_EVENT_TYPES).count() * EYE_CONTACT_PENALTY_PER_EVENT
+    body_language_penalty = (
+        events.filter(event_type__in=BODY_LANGUAGE_EVENT_TYPES).count() * BODY_LANGUAGE_PENALTY_PER_EVENT
+    )
+    body_language_score = max(0.0, 100.0 - body_language_penalty)
+    eye_contact_score = max(0.0, 100.0 - eye_contact_penalty)
+    return body_language_score, eye_contact_score
+
+
+def _summarize_session(session, evaluations) -> ReportSummaryResult:
+    transcript_lines = []
+    for evaluation in evaluations.select_related("answer__question"):
+        q = evaluation.answer.question
+        transcript_lines.append(
+            f"Q: {q.question_text}\nA: {evaluation.answer.transcript_text}\nFeedback: {evaluation.feedback_text}"
+        )
+    transcript = "\n\n".join(transcript_lines)[:12000]
+
+    # Reuses the "answer_evaluation" purpose/config -- this is the same kind
+    # of task (LLM judging interview performance from text), just summarized
+    # across the whole session rather than one answer at a time.
+    model = get_chat_model("answer_evaluation").with_structured_output(ReportSummaryResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are an interview coach summarizing a candidate's full mock interview. "
+                "Based on the Q&A transcript and per-answer feedback below, identify concrete "
+                "strengths, weaknesses, and 3-5 actionable improvement tips. Respond in {language}.",
+            ),
+            ("human", "{transcript}"),
+        ]
+    )
+    return (prompt | model).invoke({"transcript": transcript, "language": _language_name(session.language)})

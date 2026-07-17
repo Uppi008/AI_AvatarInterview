@@ -9,13 +9,13 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=2)
 def parse_resume_task(self, *, resume_id: str):
-    """Extracts raw text from the uploaded PDF/DOCX and hands off to the AI
+    """Extracts raw text from the uploaded PDF/DOCX, then hands off to the AI
     engine for structured extraction (skills/projects/experience/...).
 
-    Structured extraction and question-bank generation are implemented in
-    Phase 5 (apps.ai_engine); until then this task only performs the
-    deterministic text-extraction step and leaves the resume in
-    `COMPLETED` state with `raw_text` populated.
+    Text extraction is the deliverable that decides `parsing_status`: if it
+    succeeds, the resume is COMPLETED even if the downstream LLM extraction
+    below fails (logged, not raised) -- a flaky/unavailable LLM shouldn't
+    make an otherwise-successful upload look failed to the student.
     """
     resume = Resume.objects.get(id=resume_id)
     resume.parsing_status = Resume.ParsingStatus.PROCESSING
@@ -35,8 +35,8 @@ def parse_resume_task(self, *, resume_id: str):
 
     try:
         extract_resume_entities(resume)
-    except NotImplementedError:
-        logger.info("Structured resume extraction for %s awaits Phase 5.", resume_id)
+    except Exception:
+        logger.exception("Structured resume extraction failed for resume %s", resume_id)
 
 
 def _extract_text(resume: Resume) -> str:

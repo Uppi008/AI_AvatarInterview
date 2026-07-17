@@ -9,10 +9,8 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=2)
 def generate_report_task(self, *, session_id: str):
-    """Aggregates scoring into an InterviewReport once a session ends.
-
-    Score aggregation is implemented in Phase 5
-    (apps.ai_engine.aggregate_session_report); PDF rendering + email are
+    """Aggregates scoring into an InterviewReport once a session ends, via
+    apps.ai_engine.aggregate_session_report; PDF rendering + email are
     handled by apps.reports.
     """
     session = InterviewSession.objects.get(id=session_id)
@@ -21,9 +19,13 @@ def generate_report_task(self, *, session_id: str):
 
     try:
         report_data = aggregate_session_report(session=session)
-    except NotImplementedError:
-        logger.info("Report aggregation for session %s awaits Phase 5.", session_id)
+    except ValueError:
+        # No evaluated answers (e.g. the student ended the interview before
+        # answering anything) -- nothing to report, not a failure to retry.
+        logger.info("Nothing to aggregate for session %s: no evaluated answers.", session_id)
         return
+    except Exception as exc:
+        raise self.retry(exc=exc)
 
     from apps.reports.services import create_report_and_send_email
 

@@ -6,7 +6,7 @@ import { tokenStorage } from "@/services/apiClient";
 import { authApi } from "./authApi";
 import type { LoginPayload, RegisterPayload, User } from "./types";
 
-interface AuthState {
+export interface AuthState {
   user: User | null;
   status: "idle" | "loading" | "succeeded" | "failed";
   error: string | null;

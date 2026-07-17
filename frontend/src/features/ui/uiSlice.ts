@@ -8,7 +8,7 @@ function getInitialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-interface UiState {
+export interface UiState {
   theme: Theme;
   sidebarOpen: boolean;
 }

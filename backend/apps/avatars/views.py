@@ -2,6 +2,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, permissions, viewsets
 
 from common.permissions import IsStudent
+from common.throttling import ScopedThrottleOnCreateMixin
 
 from . import services
 from .models import Avatar, CustomAvatar
@@ -23,6 +24,7 @@ class AvatarViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
 
 
 class CustomAvatarViewSet(
+    ScopedThrottleOnCreateMixin,
     mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
 ):
     """Student-generated avatars built from an uploaded photo (Module 4)."""

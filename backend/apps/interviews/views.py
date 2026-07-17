@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from common.permissions import IsStudent
+from common.throttling import ScopedThrottleOnCreateMixin
 
 from . import services
 from .models import InterviewSession
@@ -14,6 +15,7 @@ from .serializers import (
 
 
 class InterviewSessionViewSet(
+    ScopedThrottleOnCreateMixin,
     mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
 ):
     """Session lifecycle over REST: create/list/retrieve/end.

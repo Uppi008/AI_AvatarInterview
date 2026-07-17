@@ -2,6 +2,7 @@ from rest_framework import mixins, viewsets
 from rest_framework.response import Response
 
 from common.permissions import IsStudent
+from common.throttling import ScopedThrottleOnCreateMixin
 
 from . import services
 from .models import Resume
@@ -9,6 +10,7 @@ from .serializers import ResumeSerializer, ResumeUploadSerializer
 
 
 class ResumeViewSet(
+    ScopedThrottleOnCreateMixin,
     mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
 ):
     """List/retrieve a student's own resumes and upload new ones.

@@ -7,7 +7,7 @@ Each phase produces real, runnable artifacts — reviewed before moving to the n
 | 1 | Project architecture, folder scaffold, docs, docker-compose skeleton, env config | ✅ Done |
 | 2 | Database design — Django models, ER diagram, SQL, indexes/constraints | ✅ Done |
 | 3 | Backend — Django project, DRF apps, JWT auth, Swagger/OpenAPI docs | ✅ Done |
-| 4 | Frontend — Vite/React/TS scaffold, auth pages, dashboard shell | ⬜ Not started |
+| 4 | Frontend — Vite/React/TS scaffold, auth pages, dashboard shell | ✅ Done |
 | 5 | AI integration — LangChain + Groq, resume parsing, question generation, scoring | ⬜ Not started |
 | 6 | Avatar system — catalog, persona config, voice mapping, selection UI | ⬜ Not started |
 | 7 | Camera monitoring — MediaPipe/OpenCV proctoring, alert system, auto-terminate | ⬜ Not started |

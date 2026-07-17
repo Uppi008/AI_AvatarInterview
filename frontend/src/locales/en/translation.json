@@ -1,0 +1,67 @@
+{
+  "app": { "name": "AI_AvatarInterview" },
+  "common": {
+    "loading": "Loading...",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full name",
+    "continue": "Continue",
+    "or": "or"
+  },
+  "auth": {
+    "heroTitle": "Practice interviews with an AI that actually listens.",
+    "heroSubtitle": "Upload your resume, pick an interviewer, and get scored feedback — in English, Hindi, or Telugu.",
+    "heroPoint1": "Resume-aware questions generated just for you",
+    "heroPoint2": "Real-time face, eye, and voice monitoring like a real interview",
+    "heroPoint3": "Detailed scorecards emailed straight to your inbox",
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Log in to continue your interview practice.",
+    "signupTitle": "Create your account",
+    "signupSubtitle": "Start practicing in under a minute.",
+    "confirmPassword": "Confirm password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "signUp": "Sign up",
+    "logIn": "Log in",
+    "orContinueWith": "Or continue with",
+    "google": "Continue with Google",
+    "resetTitle": "Reset your password",
+    "resetSubtitle": "Enter the email you signed up with and we'll send you a reset link.",
+    "sendResetLink": "Send reset link",
+    "newPassword": "New password",
+    "resetPasswordTitle": "Choose a new password",
+    "verifyTitle": "Verifying your email...",
+    "verifySuccess": "Your email has been verified.",
+    "verifyFailure": "That verification link is invalid or has expired.",
+    "backToLogin": "Back to login",
+    "listeningPlaceholder": "Listening for your answer..."
+  },
+  "dashboard": {
+    "welcomeBack": "Welcome back, {{name}}",
+    "welcomeSubtitle": "Here's how your interview practice is going.",
+    "startInterview": "Start a new interview",
+    "stats": {
+      "completed": "Completed interviews",
+      "upcoming": "Upcoming interviews",
+      "resumeStatus": "Resume status",
+      "averageScore": "Average score"
+    },
+    "performance": "Performance over time",
+    "recentInterviews": "Recent interviews",
+    "aiSuggestions": "AI suggestions",
+    "noInterviewsYet": "You haven't taken an interview yet.",
+    "noResume": "No resume uploaded",
+    "uploadResume": "Upload resume"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "interviews": "Interviews",
+    "resume": "Resume",
+    "settings": "Settings",
+    "logout": "Log out"
+  }
+}

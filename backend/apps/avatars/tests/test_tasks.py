@@ -32,7 +32,7 @@ class TestGenerateCustomAvatarTask:
         # this environment (no real face image available); this mocks only
         # the detection step to prove the crop/resize/save pipeline around
         # it is wired correctly.
-        with patch("apps.avatars.tasks._detect_largest_face", return_value=(20, 20, 80, 80)):
+        with patch("apps.avatars.services._detect_largest_face", return_value=(20, 20, 80, 80)):
             generate_custom_avatar_task.delay(custom_avatar_id=str(custom_avatar.id))
 
         custom_avatar.refresh_from_db()

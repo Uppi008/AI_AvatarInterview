@@ -6,7 +6,12 @@ the two deliberately, rather than handing the model a Django model to fill in.
 """
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+# langchain_groq==0.1.6 checks schemas against its own bundled
+# langchain_core.pydantic_v1.BaseModel (not plain `pydantic.BaseModel`) to
+# decide whether to parse structured output into a model instance vs. a
+# raw dict. Importing from here -- rather than `pydantic` directly --
+# keeps with_structured_output() actually returning parsed instances.
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 
 # --- Resume extraction ---
@@ -54,6 +59,18 @@ class ResumeExtractionResult(BaseModel):
     )
 
 
+# --- Content moderation ---
+class ModerationResult(BaseModel):
+    is_safe: bool = Field(
+        default=True,
+        description=(
+            "False only if the text contains or requests sexual/adult, hateful, violent, or "
+            "abusive content. Blunt, negative, or off-topic interview answers are still safe."
+        ),
+    )
+    reason: str = Field(default="", description="Brief reason if unsafe, empty string if safe")
+
+
 # --- Question generation ---
 class GeneratedQuestion(BaseModel):
     question_text: str
@@ -71,6 +88,13 @@ class AnswerEvaluationResult(BaseModel):
     communication_score: float = Field(ge=0, le=100)
     relevance_score: float = Field(ge=0, le=100)
     confidence_score: float = Field(ge=0, le=100)
+    voice_clarity_score: float = Field(
+        ge=0, le=100, description="How clearly the answer was articulated -- from the transcript's fluency/pacing, not audio quality"
+    )
+    grammar_score: float = Field(ge=0, le=100, description="Grammatical correctness of the answer as transcribed")
+    problem_solving_score: float = Field(
+        ge=0, le=100, description="Quality of reasoning/approach shown, independent of raw technical correctness"
+    )
     feedback: str = Field(description="1-2 sentences of specific, constructive feedback")
     follow_up_question: Optional[str] = Field(
         default=None, description="A natural follow-up question, only if the answer invites one"
@@ -82,3 +106,35 @@ class ReportSummaryResult(BaseModel):
     strengths: list[str] = Field(default_factory=list)
     weaknesses: list[str] = Field(default_factory=list)
     improvement_tips: list[str] = Field(default_factory=list)
+    spoken_summary: str = Field(
+        default="",
+        description=(
+            "A short, natural closing statement in the interviewer's own voice -- the way a "
+            "real interviewer wraps up in person: thanks the candidate, comments specifically "
+            "on what stood out (backed by the actual scores given), gives one honest area to "
+            "work on, and closes encouragingly. Plain spoken language, not a bulleted report."
+        ),
+    )
+    learning_roadmap: list[str] = Field(
+        default_factory=list,
+        description="3-6 concrete, ordered next steps to close the gaps this candidate showed.",
+    )
+    career_suggestions: list[str] = Field(
+        default_factory=list,
+        description="2-4 realistic role/track suggestions given this candidate's demonstrated strengths.",
+    )
+    hiring_recommendation: Literal["strong_hire", "hire", "no_hire", "strong_no_hire"] = Field(
+        default="hire", description="Overall hiring signal based on the full interview performance."
+    )
+    hiring_recommendation_reason: str = Field(
+        default="", description="One sentence explaining the hiring recommendation, referencing the actual scores."
+    )
+    recommended_courses: list[str] = Field(
+        default_factory=list, description="2-4 specific course names or topics to study to close the gaps shown."
+    )
+    recommended_certifications: list[str] = Field(
+        default_factory=list, description="1-3 relevant certifications worth pursuing."
+    )
+    recommended_projects: list[str] = Field(
+        default_factory=list, description="2-3 concrete project ideas that would strengthen this candidate's profile."
+    )

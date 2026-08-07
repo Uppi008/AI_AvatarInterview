@@ -31,6 +31,7 @@ class AIModelConfig(BaseModel):
         SPEECH_TO_TEXT = "speech_to_text", _("Speech to Text")
         TEXT_TO_SPEECH = "text_to_speech", _("Text to Speech")
         RESUME_EXTRACTION = "resume_extraction", _("Resume Extraction")
+        MODERATION = "moderation", _("Content Moderation")
 
     provider = models.CharField(max_length=50, help_text="e.g. groq, gemini, openrouter, ollama")
     model_name = models.CharField(max_length=100)

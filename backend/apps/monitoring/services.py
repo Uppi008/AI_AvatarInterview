@@ -16,6 +16,7 @@ VIOLATION_EVENT_TYPES = {
     ProctoringEvent.EventType.MIC_DISABLED,
     ProctoringEvent.EventType.CAMERA_DISABLED,
     ProctoringEvent.EventType.INTERNET_DISCONNECTED,
+    ProctoringEvent.EventType.INAPPROPRIATE_CONTENT,
 }
 
 

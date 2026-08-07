@@ -1,4 +1,3 @@
-from django.db import transaction
 from django.utils import timezone
 
 from apps.avatars.models import Avatar
@@ -7,14 +6,23 @@ from apps.resumes.models import Resume
 from .models import InterviewSession
 
 
-@transaction.atomic
 def start_session(
-    *, student, avatar_id, resume_id=None, language: str = InterviewSession.Language.ENGLISH
+    *,
+    student,
+    avatar_id,
+    resume_id=None,
+    language: str = InterviewSession.Language.ENGLISH,
+    personality: str = "",
 ) -> InterviewSession:
-    """Creates the session and generates its question bank in one
-    transaction: if question generation fails (bad/missing API key, LLM
-    outage), the session creation rolls back too, rather than leaving a
-    broken, questionless session sitting in IN_PROGRESS.
+    """Creates the session, then generates its question bank.
+
+    Deliberately NOT wrapped in one @transaction.atomic block: generate_question_bank()
+    is a network call to the LLM provider, and holding a DB transaction open for the
+    duration of an external HTTP call ties up a DB connection for as long as that call
+    takes. The session is committed first; if question generation fails (bad/missing API
+    key, LLM outage), it's deleted as a compensating action instead -- same end result
+    (no orphaned questionless session left IN_PROGRESS), without blocking a DB connection
+    on the network call.
     """
     avatar = Avatar.objects.get(id=avatar_id, is_active=True)
 
@@ -28,13 +36,18 @@ def start_session(
         avatar=avatar,
         resume=resume,
         language=language,
+        personality=personality,
         status=InterviewSession.Status.IN_PROGRESS,
         started_at=timezone.now(),
     )
 
     from apps.ai_engine.services import generate_question_bank
 
-    generate_question_bank(session=session)
+    try:
+        generate_question_bank(session=session)
+    except Exception:
+        session.delete()
+        raise
 
     return session
 

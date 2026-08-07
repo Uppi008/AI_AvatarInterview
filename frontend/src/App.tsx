@@ -11,6 +11,7 @@ import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { InterviewSessionPage } from "@/features/interviews/pages/InterviewSessionPage";
 import { InterviewsPage } from "@/features/interviews/pages/InterviewsPage";
 import { LiveInterviewPage } from "@/features/interviews/pages/LiveInterviewPage";
+import { ReportPage } from "@/features/reports/pages/ReportPage";
 import { ResumePage } from "@/features/resume/pages/ResumePage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { useAuthBootstrap } from "@/hooks/useAuthBootstrap";
@@ -74,6 +75,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <LiveInterviewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/interviews/:id/report"
+          element={
+            <ProtectedRoute>
+              <ReportPage />
             </ProtectedRoute>
           }
         />

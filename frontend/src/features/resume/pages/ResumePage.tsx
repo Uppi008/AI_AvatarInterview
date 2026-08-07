@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileText, UploadCloud } from "lucide-react";
 
+import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { getApiErrorMessage } from "@/services/apiClient";
@@ -18,12 +21,20 @@ const STATUS_LABEL: Record<Resume["parsing_status"], string> = {
   failed: "Failed",
 };
 
+const STATUS_TONE: Record<Resume["parsing_status"], "slate" | "brand" | "green" | "red"> = {
+  pending: "slate",
+  processing: "brand",
+  completed: "green",
+  failed: "red",
+};
+
 export function ResumePage() {
   const { t } = useTranslation();
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -64,18 +75,28 @@ export function ResumePage() {
           </CardHeader>
 
           <div
-            className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-700"
-            onDragOver={(e) => e.preventDefault()}
+            className={
+              "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors " +
+              (dragActive
+                ? "border-brand-500 bg-brand-50 dark:bg-brand-950/20"
+                : "border-slate-300 dark:border-slate-700")
+            }
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragActive(true);
+            }}
+            onDragLeave={() => setDragActive(false)}
             onDrop={(e) => {
               e.preventDefault();
+              setDragActive(false);
               const file = e.dataTransfer.files[0];
               if (file) void handleFile(file);
             }}
           >
-            <UploadCloud className="h-8 w-8 text-slate-400" />
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Drag & drop your resume, or
-            </p>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-300">
+              <UploadCloud className="h-6 w-6" />
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Drag & drop your resume, or</p>
             <Button variant="outline" size="sm" isLoading={uploading} onClick={() => fileInputRef.current?.click()}>
               {t("dashboard.uploadResume")}
             </Button>
@@ -93,7 +114,11 @@ export function ResumePage() {
             <p className="text-xs text-slate-400">PDF or DOCX, up to 10MB</p>
           </div>
 
-          {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && (
+            <Alert tone="error" className="mt-3">
+              {error}
+            </Alert>
+          )}
         </Card>
 
         <Card>
@@ -101,15 +126,19 @@ export function ResumePage() {
             <CardTitle>Current resume</CardTitle>
           </CardHeader>
           {loading ? (
-            <Spinner />
+            <div className="flex h-24 items-center justify-center">
+              <Spinner />
+            </div>
           ) : !activeResume ? (
-            <p className="text-sm text-slate-400 dark:text-slate-500">{t("dashboard.noResume")}</p>
+            <EmptyState icon={FileText} title={t("dashboard.noResume")} />
           ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-brand-600" />
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-300">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-900 dark:text-white">
                     {activeResume.original_filename}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -117,9 +146,9 @@ export function ResumePage() {
                   </p>
                 </div>
               </div>
-              <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+              <Badge tone={STATUS_TONE[activeResume.parsing_status]} dot>
                 {STATUS_LABEL[activeResume.parsing_status]}
-              </span>
+              </Badge>
             </div>
           )}
         </Card>

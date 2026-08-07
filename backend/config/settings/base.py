@@ -23,6 +23,13 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.
 AUTH_USER_MODEL = "users.User"
 
 INSTALLED_APPS = [
+    # Must be first: Django resolves same-named management commands using
+    # the LAST app (in INSTALLED_APPS order) that defines them, and daphne
+    # ships a `runserver` override that serves ASGI/WebSockets instead of
+    # plain WSGI. Without it here, `manage.py runserver` can't upgrade the
+    # live-interview WebSocket at all -- the handshake fails immediately
+    # and the frontend shows a generic "Connection error" banner.
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",

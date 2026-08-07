@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Clock, FileText, Trophy } from "lucide-react";
 
+import { Alert } from "@/components/ui/Alert";
 import { Spinner } from "@/components/ui/Spinner";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 
@@ -44,11 +45,7 @@ export function DashboardPage() {
       <div className="flex flex-col gap-6">
         <WelcomeCard />
 
-        {error && (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
-            {error}
-          </p>
-        )}
+        {error && <Alert>{error}</Alert>}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label={t("dashboard.stats.completed")} value={String(completedCount)} icon={CheckCircle2} tone="green" />

@@ -1,5 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 
+import { Badge } from "@/components/ui/Badge";
+
 const VIOLATION_MESSAGES: Record<string, string> = {
   no_face: "Face not detected. Please stay visible on camera.",
   multiple_faces: "Multiple people detected in frame.",
@@ -13,6 +15,7 @@ const VIOLATION_MESSAGES: Record<string, string> = {
   mic_disabled: "Microphone was disabled.",
   camera_disabled: "Camera was disabled.",
   internet_disconnected: "Internet connection lost.",
+  inappropriate_content: "That response isn't appropriate for this interview. Please answer professionally.",
 };
 
 interface ViolationBannerProps {
@@ -30,9 +33,9 @@ export function ViolationBanner({ eventType, violationCount, maxViolations }: Vi
         <AlertTriangle className="h-5 w-5 shrink-0" />
         <span className="text-sm font-medium">{VIOLATION_MESSAGES[eventType] ?? "Proctoring alert."}</span>
       </div>
-      <span className="shrink-0 text-xs font-semibold">
-        Violation {violationCount}/{maxViolations}
-      </span>
+      <Badge tone="amber" className="shrink-0 bg-amber-100 dark:bg-amber-900/60">
+        {`Violation ${violationCount}/${maxViolations}`}
+      </Badge>
     </div>
   );
 }

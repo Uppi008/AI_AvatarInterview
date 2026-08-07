@@ -25,6 +25,7 @@ class ProctoringEvent(BaseModel):
         MIC_DISABLED = "mic_disabled", _("Microphone Disabled")
         CAMERA_DISABLED = "camera_disabled", _("Camera Disabled")
         INTERNET_DISCONNECTED = "internet_disconnected", _("Internet Disconnected")
+        INAPPROPRIATE_CONTENT = "inappropriate_content", _("Inappropriate Content")
 
     class Severity(models.TextChoices):
         WARNING = "warning", _("Warning")

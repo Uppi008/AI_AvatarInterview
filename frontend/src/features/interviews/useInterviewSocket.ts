@@ -2,12 +2,26 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { tokenStorage } from "@/services/apiClient";
 
-import type { ClientMessage, ProctoringEventType, ServerMessage, WSProgress, WSQuestion, WSScores } from "./ws-types";
+import type {
+  AcknowledgementKind,
+  ClientMessage,
+  ProctoringEventType,
+  ServerMessage,
+  WSProgress,
+  WSQuestion,
+  WSScores,
+} from "./ws-types";
 
 interface EvaluationResult {
   questionId: string;
   feedback: string;
   scores: WSScores;
+  audioBase64: string | null;
+}
+
+interface SpokenRemark {
+  text: string;
+  audioBase64: string | null;
 }
 
 type ConnectionStatus = "connecting" | "open" | "closed";
@@ -18,6 +32,8 @@ export function useInterviewSocket(sessionId: string) {
   const [question, setQuestion] = useState<WSQuestion | null>(null);
   const [progress, setProgress] = useState<WSProgress>({ answered: 0, total: 0 });
   const [lastEvaluation, setLastEvaluation] = useState<EvaluationResult | null>(null);
+  const [acknowledgement, setAcknowledgement] = useState<(SpokenRemark & { kind: AcknowledgementKind }) | null>(null);
+  const [silenceNudge, setSilenceNudge] = useState<SpokenRemark | null>(null);
   const [violationCount, setViolationCount] = useState(0);
   const [lastViolationType, setLastViolationType] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<InterviewOutcome>(null);
@@ -58,9 +74,23 @@ export function useInterviewSocket(sessionId: string) {
           setQuestion(message.question);
           setProgress(message.progress);
           setLastEvaluation(null);
+          setAcknowledgement(null);
+          setSilenceNudge(null);
           break;
         case "evaluation":
-          setLastEvaluation({ questionId: message.question_id, feedback: message.feedback, scores: message.scores });
+          setLastEvaluation({
+            questionId: message.question_id,
+            feedback: message.feedback,
+            scores: message.scores,
+            audioBase64: message.audio_base64,
+          });
+          break;
+        case "acknowledgement":
+          setSilenceNudge(null);
+          setAcknowledgement({ text: message.text, audioBase64: message.audio_base64, kind: message.kind });
+          break;
+        case "silence_nudge":
+          setSilenceNudge({ text: message.text, audioBase64: message.audio_base64 });
           break;
         case "violation_warning":
           setViolationCount(message.violation_count);
@@ -102,6 +132,8 @@ export function useInterviewSocket(sessionId: string) {
     question,
     progress,
     lastEvaluation,
+    acknowledgement,
+    silenceNudge,
     violationCount,
     lastViolationType,
     outcome,
@@ -110,8 +142,9 @@ export function useInterviewSocket(sessionId: string) {
     sendAnswerAudio: (audioBase64: string, mimeType: string) =>
       send({ type: "answer_audio", audio_base64: audioBase64, mime_type: mimeType }),
     sendAnswerText: (text: string) => send({ type: "answer_text", text }),
-    skipQuestion: () => send({ type: "skip_question" }),
+    skipQuestion: (reason?: "silence_timeout") => send({ type: "skip_question", reason }),
     repeatQuestion: () => send({ type: "repeat_question" }),
+    checkSilence: () => send({ type: "check_silence" }),
     endInterview: () => send({ type: "end_interview" }),
     sendProctoringEvent: (eventType: ProctoringEventType, metadata?: Record<string, unknown>) =>
       send({ type: "proctoring_event", event_type: eventType, metadata }),

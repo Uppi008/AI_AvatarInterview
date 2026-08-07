@@ -1,5 +1,15 @@
 export type InterviewStatus = "scheduled" | "in_progress" | "completed" | "terminated" | "abandoned";
 export type QuestionType = "resume_based" | "behavioral" | "coding" | "follow_up";
+export type InterviewPersonality =
+  | ""
+  | "friendly"
+  | "professional"
+  | "strict_hr"
+  | "technical"
+  | "manager"
+  | "ceo"
+  | "mentor"
+  | "recruiter";
 
 export interface InterviewSession {
   id: string;
@@ -7,6 +17,7 @@ export interface InterviewSession {
   avatar_name: string;
   avatar_image: string;
   language: "en" | "hi" | "te";
+  personality: InterviewPersonality;
   status: InterviewStatus;
   scheduled_at: string | null;
   started_at: string | null;
@@ -36,4 +47,5 @@ export interface StartInterviewPayload {
   avatar_id: string;
   resume_id?: string;
   language: "en" | "hi" | "te";
+  personality?: InterviewPersonality;
 }

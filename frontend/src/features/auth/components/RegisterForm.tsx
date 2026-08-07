@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
 import { useAppDispatch } from "@/app/hooks";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { register as registerUser } from "@/features/auth/authSlice";
@@ -47,9 +48,9 @@ export function RegisterForm() {
 
   if (registered) {
     return (
-      <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
+      <Alert tone="success" className="p-5">
         Check your inbox — we've sent a verification link to finish creating your account.
-      </div>
+      </Alert>
     );
   }
 

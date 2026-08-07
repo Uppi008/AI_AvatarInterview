@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Lightbulb } from "lucide-react";
 
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { InterviewReport } from "@/features/reports/types";
 
 export function AiSuggestions({ latestReport }: { latestReport: InterviewReport | null }) {
@@ -15,7 +16,7 @@ export function AiSuggestions({ latestReport }: { latestReport: InterviewReport 
       </CardHeader>
 
       {tips.length === 0 ? (
-        <p className="text-sm text-slate-400 dark:text-slate-500">{t("dashboard.noInterviewsYet")}</p>
+        <EmptyState icon={Lightbulb} title={t("dashboard.noInterviewsYet")} />
       ) : (
         <ul className="space-y-3">
           {tips.slice(0, 4).map((tip, i) => (

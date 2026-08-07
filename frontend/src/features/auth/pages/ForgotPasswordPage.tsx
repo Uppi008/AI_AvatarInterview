@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { z } from "zod";
 
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { AuthLayout } from "@/layouts/AuthLayout";
@@ -47,9 +48,9 @@ export function ForgotPasswordPage() {
           <p className="mb-8 text-sm text-slate-500 dark:text-slate-400">{t("auth.resetSubtitle")}</p>
 
           {sent ? (
-            <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
+            <Alert tone="success" className="p-5">
               If that email exists, a reset link is on its way.
-            </div>
+            </Alert>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
               <Input

@@ -39,7 +39,7 @@ class InterviewSessionListSerializer(serializers.ModelSerializer):
     class Meta:
         model = InterviewSession
         fields = [
-            "id", "avatar", "avatar_name", "avatar_image", "language", "status",
+            "id", "avatar", "avatar_name", "avatar_image", "language", "personality", "status",
             "scheduled_at", "started_at", "ended_at", "duration_seconds", "violation_count",
         ]
 
@@ -56,4 +56,7 @@ class InterviewSessionCreateSerializer(serializers.Serializer):
     resume_id = serializers.UUIDField(required=False, allow_null=True)
     language = serializers.ChoiceField(
         choices=InterviewSession.Language.choices, default=InterviewSession.Language.ENGLISH
+    )
+    personality = serializers.ChoiceField(
+        choices=InterviewSession.Personality.choices, required=False, allow_blank=True, default=""
     )

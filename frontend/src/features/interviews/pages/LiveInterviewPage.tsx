@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Clock, ListChecks, ShieldAlert } from "lucide-react";
 
+import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
 import { useAudioPlayback } from "@/hooks/useAudioPlayback";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 
 import { interviewsApi } from "../api";
+import type { AvatarState } from "../components/AnimatedAvatar";
 import { AnswerControls } from "../components/AnswerControls";
 import { AvatarStage } from "../components/AvatarStage";
 import { InterviewEndScreen } from "../components/InterviewEndScreen";
@@ -15,12 +19,13 @@ import { useBrowserSignals } from "../proctoring/useBrowserSignals";
 import { useFaceMonitoring } from "../proctoring/useFaceMonitoring";
 import { useMediaDeviceMonitoring } from "../proctoring/useMediaDeviceMonitoring";
 import { useInterviewSocket } from "../useInterviewSocket";
+import { useSilenceDetector } from "../useSilenceDetector";
 
 export function LiveInterviewPage() {
   const { id } = useParams<{ id: string }>();
   const sessionId = id ?? "";
   const socket = useInterviewSocket(sessionId);
-  const { isPlaying, play } = useAudioPlayback();
+  const { isPlaying, enqueue, audioElement } = useAudioPlayback();
   const { isRecording, start: startRecording, stop: stopRecording } = useAudioRecorder();
 
   const [avatar, setAvatar] = useState<{ name: string; image: string } | null>(null);
@@ -28,7 +33,16 @@ export function LiveInterviewPage() {
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [awaitingResponse, setAwaitingResponse] = useState(false);
   const lastPlayedQuestionId = useRef<string | null>(null);
+
+  const avatarState: AvatarState = isPlaying
+    ? "speaking"
+    : isRecording
+      ? "listening"
+      : awaitingResponse
+        ? "thinking"
+        : "idle";
 
   useEffect(() => {
     if (!sessionId) return;
@@ -44,11 +58,39 @@ export function LiveInterviewPage() {
   }, []);
 
   useEffect(() => {
-    if (socket.question?.audio_base64 && socket.question.id !== lastPlayedQuestionId.current) {
+    if (socket.question && socket.question.id !== lastPlayedQuestionId.current) {
       lastPlayedQuestionId.current = socket.question.id;
-      play(socket.question.audio_base64);
+      setAwaitingResponse(false);
+      if (socket.question.audio_base64) {
+        enqueue(socket.question.audio_base64);
+      }
     }
-  }, [socket.question, play]);
+  }, [socket.question, enqueue]);
+
+  // Feedback/acknowledgement/nudge audio queues behind whatever's still
+  // playing (see useAudioPlayback) so e.g. "Nice, let's continue" finishes
+  // before the next question starts talking over it.
+  useEffect(() => {
+    if (socket.lastEvaluation?.audioBase64) enqueue(socket.lastEvaluation.audioBase64);
+  }, [socket.lastEvaluation, enqueue]);
+
+  useEffect(() => {
+    if (socket.acknowledgement?.audioBase64) enqueue(socket.acknowledgement.audioBase64);
+  }, [socket.acknowledgement, enqueue]);
+
+  useEffect(() => {
+    if (socket.silenceNudge?.audioBase64) enqueue(socket.silenceNudge.audioBase64);
+  }, [socket.silenceNudge, enqueue]);
+
+  // Case 3: a candidate who hasn't started answering gets a spoken check-in
+  // at 15s, then an automatic skip at 30s total -- paused while they're
+  // actually recording or a response is already being scored.
+  useSilenceDetector({
+    questionId: socket.question?.id ?? null,
+    isActive: socket.status === "open" && !socket.outcome && !!socket.question && !isRecording && !awaitingResponse,
+    onCheckSilence: socket.checkSilence,
+    onTimeout: () => socket.skipQuestion("silence_timeout"),
+  });
 
   const handleStreamReady = useCallback((mediaStream: MediaStream, video: HTMLVideoElement) => {
     setStream(mediaStream);
@@ -71,7 +113,13 @@ export function LiveInterviewPage() {
 
   const handleStopRecording = async () => {
     const { base64, mimeType } = await stopRecording();
+    setAwaitingResponse(true);
     socket.sendAnswerAudio(base64, mimeType);
+  };
+
+  const handleSendText = (text: string) => {
+    setAwaitingResponse(true);
+    socket.sendAnswerText(text);
   };
 
   if (socket.outcome) {
@@ -87,29 +135,29 @@ export function LiveInterviewPage() {
           </div>
         )}
 
-        {socket.error && (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
-            {socket.error}
-          </p>
-        )}
+        {socket.error && <Alert tone="error">{socket.error}</Alert>}
 
-        {mediaError && (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
-            {mediaError}
-          </p>
-        )}
+        {mediaError && <Alert tone="error">{mediaError}</Alert>}
 
         {socket.status === "open" && (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500 dark:text-slate-400">
-              <span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Badge tone="slate" className="gap-1.5 py-1.5">
+                <ListChecks className="h-3.5 w-3.5" />
                 Question {socket.progress.answered + 1} of{" "}
                 {Math.max(socket.progress.total, socket.progress.answered + 1)}
-              </span>
-              <span>{formatElapsed(elapsedSeconds)}</span>
-              <span className="font-medium text-amber-600 dark:text-amber-400">
+              </Badge>
+              <Badge tone="slate" className="gap-1.5 py-1.5 tabular-nums">
+                <Clock className="h-3.5 w-3.5" />
+                {formatElapsed(elapsedSeconds)}
+              </Badge>
+              <Badge
+                tone={socket.violationCount >= 3 ? "red" : socket.violationCount >= 1 ? "amber" : "green"}
+                className="gap-1.5 py-1.5"
+              >
+                <ShieldAlert className="h-3.5 w-3.5" />
                 Violations: {socket.violationCount}/4
-              </span>
+              </Badge>
             </div>
 
             <ViolationBanner
@@ -121,37 +169,36 @@ export function LiveInterviewPage() {
             <AvatarStage
               avatarImage={avatar?.image ?? ""}
               avatarName={avatar?.name ?? "Interviewer"}
-              isSpeaking={isPlaying}
+              state={avatarState}
+              audioElement={audioElement}
               onStreamReady={handleStreamReady}
               onMediaError={setMediaError}
             />
 
             {socket.question && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
-                  <span>{socket.question.question_type.replace("_", " ")}</span>
-                  <span>&middot;</span>
-                  <span>{socket.question.difficulty}</span>
+              <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="absolute inset-y-0 left-0 w-1 bg-brand-600 dark:bg-brand-500" />
+                <div className="mb-2 flex items-center gap-2">
+                  <Badge tone="brand">{socket.question.question_type.replace("_", " ")}</Badge>
+                  <Badge tone="slate">{socket.question.difficulty}</Badge>
                 </div>
                 <p className="text-lg font-medium text-slate-900 dark:text-white">{socket.question.text}</p>
               </div>
             )}
 
-            {socket.lastEvaluation && (
-              <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
-                {socket.lastEvaluation.feedback}
-              </div>
-            )}
+            {socket.lastEvaluation && <Alert tone="success">{socket.lastEvaluation.feedback}</Alert>}
+            {socket.acknowledgement && <Alert tone="info">{socket.acknowledgement.text}</Alert>}
+            {socket.silenceNudge && <Alert tone="warning">{socket.silenceNudge.text}</Alert>}
 
             <AnswerControls
               isRecording={isRecording}
               onStartRecording={handleStartRecording}
               onStopRecording={handleStopRecording}
-              onSendText={socket.sendAnswerText}
-              onSkip={socket.skipQuestion}
+              onSendText={handleSendText}
+              onSkip={() => socket.skipQuestion()}
               onRepeat={socket.repeatQuestion}
               onEnd={socket.endInterview}
-              disabled={!socket.question}
+              disabled={!socket.question || awaitingResponse}
             />
           </>
         )}

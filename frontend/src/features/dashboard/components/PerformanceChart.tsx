@@ -9,7 +9,10 @@ import {
   YAxis,
 } from "recharts";
 
+import { TrendingUp } from "lucide-react";
+
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 
 interface PerformancePoint {
@@ -32,8 +35,8 @@ export function PerformanceChart({ data }: { data: PerformancePoint[] }) {
       </CardHeader>
 
       {data.length < 2 ? (
-        <div className="flex h-56 items-center justify-center text-sm text-slate-400 dark:text-slate-500">
-          {t("dashboard.noInterviewsYet")}
+        <div className="flex h-56 items-center justify-center">
+          <EmptyState icon={TrendingUp} title={t("dashboard.noInterviewsYet")} />
         </div>
       ) : (
         <div className="h-56">

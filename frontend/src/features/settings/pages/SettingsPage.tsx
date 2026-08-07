@@ -4,6 +4,8 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
+import { Alert } from "@/components/ui/Alert";
+import { AvatarButton } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -102,17 +104,13 @@ export function SettingsPage() {
           </CardHeader>
 
           <div className="mb-6 flex items-center gap-4">
-            <button
-              type="button"
+            <AvatarButton
+              src={profile?.profile_photo}
+              name={profile?.user.full_name}
+              size="lg"
               onClick={() => photoInputRef.current?.click()}
-              className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-xl font-semibold text-brand-700 dark:bg-brand-900/50 dark:text-brand-300"
-            >
-              {profile?.profile_photo ? (
-                <img src={profile.profile_photo} alt="" className="h-full w-full object-cover" />
-              ) : (
-                profile?.user.full_name?.[0]?.toUpperCase() ?? "?"
-              )}
-            </button>
+              aria-label="Change photo"
+            />
             <div>
               <Button variant="outline" size="sm" onClick={() => photoInputRef.current?.click()}>
                 Change photo
@@ -144,7 +142,11 @@ export function SettingsPage() {
                 className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               />
             </div>
-            {profileMessage && <p className="text-sm text-green-600 dark:text-green-400 sm:col-span-2">{profileMessage}</p>}
+            {profileMessage && (
+              <div className="sm:col-span-2">
+                <Alert tone="success">{profileMessage}</Alert>
+              </div>
+            )}
             <div className="sm:col-span-2">
               <Button type="submit" isLoading={profileForm.formState.isSubmitting}>
                 {t("common.save")}
@@ -190,8 +192,8 @@ export function SettingsPage() {
               {...passwordForm.register("new_password_confirm")}
               error={passwordForm.formState.errors.new_password_confirm?.message}
             />
-            {passwordError && <p className="text-sm text-red-600 dark:text-red-400">{passwordError}</p>}
-            {passwordMessage && <p className="text-sm text-green-600 dark:text-green-400">{passwordMessage}</p>}
+            {passwordError && <Alert tone="error">{passwordError}</Alert>}
+            {passwordMessage && <Alert tone="success">{passwordMessage}</Alert>}
             <Button type="submit" isLoading={passwordForm.formState.isSubmitting} className="w-full">
               {t("common.save")}
             </Button>

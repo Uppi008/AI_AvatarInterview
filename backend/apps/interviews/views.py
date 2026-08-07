@@ -49,6 +49,7 @@ class InterviewSessionViewSet(
             avatar_id=serializer.validated_data["avatar_id"],
             resume_id=serializer.validated_data.get("resume_id"),
             language=serializer.validated_data["language"],
+            personality=serializer.validated_data.get("personality", ""),
         )
         return Response(InterviewSessionDetailSerializer(session).data, status=status.HTTP_201_CREATED)
 

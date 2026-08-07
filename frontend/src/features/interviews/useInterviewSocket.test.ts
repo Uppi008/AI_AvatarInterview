@@ -132,6 +132,50 @@ describe("useInterviewSocket", () => {
     });
   });
 
+  it("tracks acknowledgement messages and clears them on the next question", () => {
+    const { result } = renderHook(() => useInterviewSocket("session-123"));
+    const ws = FakeWebSocket.instances[0];
+    act(() => ws.simulateOpen());
+
+    act(() =>
+      ws.simulateMessage({ type: "acknowledgement", text: "No problem, let's move on.", audio_base64: "abc", kind: "dont_know" })
+    );
+    expect(result.current.acknowledgement).toEqual({ text: "No problem, let's move on.", audioBase64: "abc", kind: "dont_know" });
+
+    act(() =>
+      ws.simulateMessage({
+        type: "question",
+        question: { id: "q2", text: "Next one.", question_type: "behavioral", difficulty: "easy", order_index: 1, audio_base64: null },
+        progress: { answered: 1, total: 3 },
+      })
+    );
+    expect(result.current.acknowledgement).toBeNull();
+  });
+
+  it("tracks silence_nudge messages, cleared by an acknowledgement or a new question", () => {
+    const { result } = renderHook(() => useInterviewSocket("session-123"));
+    const ws = FakeWebSocket.instances[0];
+    act(() => ws.simulateOpen());
+
+    act(() => ws.simulateMessage({ type: "silence_nudge", text: "Still there?", audio_base64: null }));
+    expect(result.current.silenceNudge).toEqual({ text: "Still there?", audioBase64: null });
+
+    act(() =>
+      ws.simulateMessage({ type: "acknowledgement", text: "Let's continue.", audio_base64: null, kind: "silence_timeout" })
+    );
+    expect(result.current.silenceNudge).toBeNull();
+  });
+
+  it("includes an optional reason on skip_question and no metadata field when omitted", () => {
+    const { result } = renderHook(() => useInterviewSocket("session-123"));
+    const ws = FakeWebSocket.instances[0];
+    act(() => ws.simulateOpen());
+
+    act(() => result.current.skipQuestion("silence_timeout"));
+
+    expect(JSON.parse(ws.sent[0])).toEqual({ type: "skip_question", reason: "silence_timeout" });
+  });
+
   it("does not send messages before the socket is open", () => {
     const { result } = renderHook(() => useInterviewSocket("session-123"));
     const ws = FakeWebSocket.instances[0];

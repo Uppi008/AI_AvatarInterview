@@ -14,9 +14,20 @@ def create_report_and_send_email(*, session, report_data: dict) -> InterviewRepo
             "body_language_score": report_data.get("body_language_score", 0),
             "eye_contact_score": report_data.get("eye_contact_score", 0),
             "resume_matching_score": report_data.get("resume_matching_score", 0),
+            "voice_clarity_score": report_data.get("voice_clarity_score", 0),
+            "grammar_score": report_data.get("grammar_score", 0),
+            "problem_solving_score": report_data.get("problem_solving_score", 0),
             "strengths": report_data.get("strengths", []),
             "weaknesses": report_data.get("weaknesses", []),
             "improvement_tips": report_data.get("improvement_tips", []),
+            "spoken_summary": report_data.get("spoken_summary", ""),
+            "learning_roadmap": report_data.get("learning_roadmap", []),
+            "career_suggestions": report_data.get("career_suggestions", []),
+            "recommended_courses": report_data.get("recommended_courses", []),
+            "recommended_certifications": report_data.get("recommended_certifications", []),
+            "recommended_projects": report_data.get("recommended_projects", []),
+            "hiring_recommendation": report_data.get("hiring_recommendation", ""),
+            "hiring_recommendation_reason": report_data.get("hiring_recommendation_reason", ""),
         },
     )
 
@@ -41,6 +52,9 @@ def render_pdf(report: InterviewReport) -> bytes:
     title_style = ParagraphStyle("ReportTitle", parent=styles["Title"], textColor=colors.HexColor("#4F46E5"))
     heading_style = ParagraphStyle("ReportHeading", parent=styles["Heading2"], spaceBefore=16, spaceAfter=6)
     body_style = styles["BodyText"]
+    quote_style = ParagraphStyle(
+        "SpokenSummary", parent=styles["BodyText"], fontName="Helvetica-Oblique", spaceBefore=6, spaceAfter=6
+    )
     score_style = ParagraphStyle(
         "OverallScore", parent=styles["Title"], fontSize=36, textColor=colors.HexColor("#4F46E5"), spaceAfter=4
     )
@@ -60,6 +74,21 @@ def render_pdf(report: InterviewReport) -> bytes:
         Spacer(1, 0.3 * inch),
         Paragraph(f"{report.overall_score}/100", score_style),
         Paragraph("Overall score", body_style),
+    ]
+
+    if report.spoken_summary:
+        elements.append(Paragraph(f"&ldquo;{report.spoken_summary}&rdquo;", quote_style))
+
+    if report.hiring_recommendation:
+        elements.append(
+            Paragraph(
+                f"Hiring recommendation: <b>{report.get_hiring_recommendation_display()}</b>"
+                + (f" -- {report.hiring_recommendation_reason}" if report.hiring_recommendation_reason else ""),
+                body_style,
+            )
+        )
+
+    elements += [
         Paragraph("Score breakdown", heading_style),
         Table(
             [
@@ -69,6 +98,9 @@ def render_pdf(report: InterviewReport) -> bytes:
                 ["Body language", f"{report.body_language_score}/100"],
                 ["Eye contact", f"{report.eye_contact_score}/100"],
                 ["Resume match", f"{report.resume_matching_score}/100"],
+                ["Voice clarity", f"{report.voice_clarity_score}/100"],
+                ["Grammar", f"{report.grammar_score}/100"],
+                ["Problem solving", f"{report.problem_solving_score}/100"],
             ],
             colWidths=[3 * inch, 2 * inch],
             style=TableStyle(
@@ -86,6 +118,11 @@ def render_pdf(report: InterviewReport) -> bytes:
         ("Strengths", report.strengths),
         ("Areas to improve", report.weaknesses),
         ("Improvement tips", report.improvement_tips),
+        ("Learning roadmap", report.learning_roadmap),
+        ("Career suggestions", report.career_suggestions),
+        ("Recommended courses", report.recommended_courses),
+        ("Recommended certifications", report.recommended_certifications),
+        ("Recommended projects", report.recommended_projects),
     ):
         elements.append(Paragraph(heading, heading_style))
         if items:

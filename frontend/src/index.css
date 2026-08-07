@@ -51,3 +51,19 @@ body {
 .dark ::selection {
   @apply bg-brand-800 text-brand-50;
 }
+
+/* Subtle idle "breathing" motion for the live-interview avatar (AnimatedAvatar)
+   so it never reads as a frozen photo, even at rest. */
+@keyframes avatar-sway {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(0.6deg);
+  }
+}
+
+.animate-avatar-sway {
+  animation: avatar-sway 4s ease-in-out infinite;
+}

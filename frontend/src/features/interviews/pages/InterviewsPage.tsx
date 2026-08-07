@@ -1,15 +1,25 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { Mic, Sparkles } from "lucide-react";
 
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 
 import { interviewsApi } from "../api";
-import type { InterviewSession } from "../types";
+import type { InterviewSession, InterviewStatus } from "../types";
+
+const STATUS_TONE: Record<InterviewStatus, "green" | "brand" | "amber" | "red" | "slate"> = {
+  completed: "green",
+  in_progress: "brand",
+  scheduled: "amber",
+  terminated: "red",
+  abandoned: "slate",
+};
 
 export function InterviewsPage() {
   const { t } = useTranslation();
@@ -36,26 +46,36 @@ export function InterviewsPage() {
         </CardHeader>
 
         {loading ? (
-          <Spinner />
+          <div className="flex h-40 items-center justify-center">
+            <Spinner />
+          </div>
         ) : sessions.length === 0 ? (
-          <p className="text-sm text-slate-400 dark:text-slate-500">{t("dashboard.noInterviewsYet")}</p>
+          <EmptyState
+            icon={Mic}
+            title={t("dashboard.noInterviewsYet")}
+            action={
+              <Button size="sm" onClick={() => navigate("/avatars")}>
+                {t("dashboard.startInterview")}
+              </Button>
+            }
+          />
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {sessions.map((session) => (
               <li key={session.id}>
                 <Link
                   to={`/interviews/${session.id}`}
-                  className="flex items-center justify-between py-3 first:pt-0 last:pb-0 hover:opacity-80"
+                  className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-3 transition-colors first:pt-2 last:pb-2 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                 >
-                  <div>
-                    <p className="text-sm font-medium text-slate-900 dark:text-white">{session.avatar_name}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900 dark:text-white">
+                      {session.avatar_name}
+                    </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       {session.started_at ? new Date(session.started_at).toLocaleString() : "Not started"}
                     </p>
                   </div>
-                  <span className="text-xs font-medium capitalize text-slate-500 dark:text-slate-400">
-                    {session.status.replace("_", " ")}
-                  </span>
+                  <Badge tone={STATUS_TONE[session.status]}>{session.status.replace("_", " ")}</Badge>
                 </Link>
               </li>
             ))}

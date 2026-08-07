@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { LayoutDashboard, LogOut, Menu, Mic, Settings, User, X } from "lucide-react";
+import { Bot, LayoutDashboard, LogOut, Menu, Mic, Settings, User, X } from "lucide-react";
 
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { toggleSidebar } from "@/features/ui/uiSlice";
+import { Avatar } from "@/components/ui/Avatar";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,62 +29,100 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/30 lg:hidden"
+          className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-[1px] lg:hidden"
           onClick={() => dispatch(toggleSidebar())}
         />
       )}
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 shrink-0 transform border-r border-slate-200 bg-white transition-transform dark:border-slate-800 dark:bg-slate-900 lg:static lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 transform flex-col border-r border-slate-200 bg-white transition-transform dark:border-slate-800 dark:bg-slate-900 lg:static lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex h-16 items-center justify-between px-5">
-          <span className="text-lg font-bold text-brand-600">AI_AvatarInterview</span>
-          <button className="lg:hidden" onClick={() => dispatch(toggleSidebar())} aria-label="Close menu">
+          <Link to="/dashboard" className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-indigo-700 text-white shadow-sm shadow-brand-600/30">
+              <Bot className="h-4.5 w-4.5" />
+            </span>
+            <span className="text-[15px] font-bold leading-none tracking-tight text-slate-900 dark:text-white">
+              AI_AvatarInterview
+            </span>
+          </Link>
+          <button
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 lg:hidden"
+            onClick={() => dispatch(toggleSidebar())}
+            aria-label="Close menu"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex flex-col gap-1 px-3">
+
+        <nav className="flex flex-1 flex-col gap-0.5 px-3 pt-2">
           {NAV_ITEMS.map(({ to, labelKey, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
                     : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                 )
               }
             >
-              <Icon className="h-4 w-4" />
-              {t(labelKey)}
+              {({ isActive }) => (
+                <>
+                  <span
+                    className={cn(
+                      "absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-600 transition-opacity dark:bg-brand-400",
+                      isActive ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  <Icon className="h-4 w-4" />
+                  {t(labelKey)}
+                </>
+              )}
             </NavLink>
           ))}
+        </nav>
+
+        <div className="border-t border-slate-200 p-3 dark:border-slate-800">
+          <Link
+            to="/settings"
+            className="flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            <Avatar name={user?.full_name} size="sm" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-slate-900 dark:text-white">
+                {user?.full_name ?? "—"}
+              </p>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user?.email}</p>
+            </div>
+          </Link>
           <button
             onClick={logout}
-            className="mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+            className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
           >
             <LogOut className="h-4 w-4" />
             {t("nav.logout")}
           </button>
-        </nav>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 lg:px-6">
-          <button className="lg:hidden" onClick={() => dispatch(toggleSidebar())} aria-label="Open menu">
+        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/80 lg:px-6">
+          <button
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 lg:hidden"
+            onClick={() => dispatch(toggleSidebar())}
+            aria-label="Open menu"
+          >
             <Menu className="h-5 w-5" />
           </button>
           <div className="ml-auto flex items-center gap-3">
             <LanguageSwitcher />
             <ThemeToggle />
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700 dark:bg-brand-900/50 dark:text-brand-300">
-              {user?.full_name?.[0]?.toUpperCase() ?? "?"}
-            </div>
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-8">{children}</main>

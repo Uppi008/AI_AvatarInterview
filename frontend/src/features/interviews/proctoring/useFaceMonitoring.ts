@@ -1,13 +1,9 @@
 import { useEffect, useRef } from "react";
 
+import { MEDIAPIPE_FACE_LANDMARKER_MODEL_URL, MEDIAPIPE_WASM_BASE_URL } from "../mediapipeConfig";
 import type { ProctoringEventType } from "../ws-types";
 
 type OnViolation = (eventType: ProctoringEventType, metadata?: Record<string, unknown>) => void;
-
-const MEDIAPIPE_VERSION = "0.10.35"; // must match the installed @mediapipe/tasks-vision npm version
-const WASM_BASE_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MEDIAPIPE_VERSION}/wasm`;
-const MODEL_URL =
-  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
 const NO_FACE_CONSECUTIVE_FRAMES = 15; // ~1s at ~15fps, rides out blinks/brief occlusion
 const LOOKING_AWAY_YAW_THRESHOLD_DEG = 30;
@@ -49,11 +45,11 @@ export function useFaceMonitoring(videoElement: HTMLVideoElement | null, onViola
 
     async function setup() {
       const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
-      const filesetResolver = await FilesetResolver.forVisionTasks(WASM_BASE_URL);
+      const filesetResolver = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE_URL);
       if (cancelled) return;
 
       landmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
-        baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
+        baseOptions: { modelAssetPath: MEDIAPIPE_FACE_LANDMARKER_MODEL_URL, delegate: "GPU" },
         outputFaceBlendshapes: false,
         outputFacialTransformationMatrixes: true,
         runningMode: "VIDEO",

@@ -20,6 +20,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from .llm_client import get_chat_model
 from .schemas import (
     AnswerEvaluationResult,
+    ModerationResult,
     QuestionBankResult,
     ReportSummaryResult,
     ResumeExtractionResult,
@@ -41,6 +42,52 @@ BODY_LANGUAGE_PENALTY_PER_EVENT = 8
 
 def _language_name(code: str) -> str:
     return LANGUAGE_NAMES.get(code, "English")
+
+
+def _effective_style(session) -> dict:
+    """Resolves the interview_style/speaking_style/difficulty in effect for a
+    session: its personality override if one was picked (apps.interviews.
+    models.PERSONALITY_PROFILES), otherwise the chosen avatar's own defaults.
+    Shared by question generation and answer evaluation so personality shapes
+    both what's asked and how the interviewer responds, not just one of them.
+    """
+    from apps.interviews.models import PERSONALITY_PROFILES
+
+    avatar = session.avatar
+    profile = PERSONALITY_PROFILES.get(session.personality) or {}
+    return {
+        "interview_style": profile.get("interview_style") or avatar.interview_style or "professional and structured",
+        "speaking_style": profile.get("speaking_style") or avatar.speaking_style or "clear and neutral",
+        "difficulty": profile.get("difficulty") or avatar.difficulty,
+    }
+
+
+# =====================================================================
+# Content moderation
+# =====================================================================
+def moderate_text(text: str) -> ModerationResult:
+    """Screens a candidate's free-text/transcribed answer for disallowed
+    content (sexual/adult, hateful, violent, abusive) before it's scored.
+    Called from the WS consumer on every answer; flagged text is logged as a
+    ProctoringEvent (apps.monitoring) and goes through the same warn ->
+    auto-terminate escalation as camera/browser violations, rather than a
+    separate safety pipeline.
+    """
+    model = get_chat_model("moderation", temperature=0).with_structured_output(ModerationResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are a content-safety filter for a job-interview platform. Given the "
+                "candidate's message below, decide if it contains or requests sexual/adult, "
+                "hateful, violent, or abusive content. Ordinary interview answers -- even "
+                "blunt, negative, incorrect, or off-topic ones -- are safe. Only flag genuine "
+                "policy violations.",
+            ),
+            ("human", "{text}"),
+        ]
+    )
+    return (prompt | model).invoke({"text": text[:4000]})
 
 
 # =====================================================================
@@ -137,13 +184,17 @@ def extract_resume_entities(resume) -> None:
 # =====================================================================
 def generate_question_bank(*, session) -> list:
     """Generates the initial ordered set of InterviewQuestion rows for a
-    session, based on the student's resume + the selected avatar's persona,
-    difficulty, and language.
+    session, based on the student's resume, language, and the interview
+    style/speaking-style/difficulty in effect -- the avatar's own defaults,
+    unless the session picked a personality override (apps.interviews.
+    models.PERSONALITY_PROFILES), which lets a student pair any avatar's
+    look/voice with a different interview style.
     """
     from apps.interviews.models import InterviewQuestion
 
     avatar = session.avatar
     resume = session.resume
+    style = _effective_style(session)
 
     resume_context = "No resume was provided; ask general and behavioral questions."
     if resume:
@@ -166,10 +217,23 @@ def generate_question_bank(*, session) -> list:
                 "You are {avatar_name}, a {category} conducting a mock job interview. "
                 "Your interview style: {interview_style}. Speaking style: {speaking_style}. "
                 "Target difficulty: {difficulty}. Respond entirely in {language}.\n\n"
+                "First, judge the candidate's experience level from the resume context below. "
+                "If it shows no professional roles (only education, personal, or academic "
+                "projects), treat them as a FRESHER: focus on fundamentals, their academic/"
+                "personal projects, problem-solving approach, and learning potential rather than "
+                "assuming production experience. If it shows one or more professional roles, "
+                "treat them as EXPERIENCED at a level matching their apparent seniority: ask "
+                "real-world, scenario-based questions grounded in the specific technologies "
+                "actually listed in their skills/experience (e.g. system-design trade-offs, "
+                "debugging a plausible bug in their stated stack, decisions they made on a named "
+                "project) rather than generic textbook questions. Only ask about technologies "
+                "that actually appear in the resume context below -- never invent an unrelated "
+                "stack.\n\n"
                 "Generate a well-structured interview question bank: 2-3 resume-based questions "
                 "tailored to the candidate's actual background, 2-3 behavioral questions, and "
-                "(only if this persona is technical) 1-2 coding/problem-solving questions. "
-                "6 to 8 questions total, ordered from easier to harder.",
+                "(only if this persona is technical) 1-2 coding/problem-solving questions "
+                "calibrated to their experience level. 6 to 8 questions total, ordered from "
+                "easier to harder.",
             ),
             ("human", "Candidate resume context:\n{resume_context}"),
         ]
@@ -178,9 +242,9 @@ def generate_question_bank(*, session) -> list:
         {
             "avatar_name": avatar.name,
             "category": avatar.get_category_display(),
-            "interview_style": avatar.interview_style or "professional and structured",
-            "speaking_style": avatar.speaking_style or "clear and neutral",
-            "difficulty": avatar.difficulty,
+            "interview_style": style["interview_style"],
+            "speaking_style": style["speaking_style"],
+            "difficulty": style["difficulty"],
             "language": _language_name(session.language),
             "resume_context": resume_context,
         }
@@ -209,14 +273,24 @@ def evaluate_answer(*, question, answer) -> dict:
     from apps.interviews.models import AnswerEvaluation, InterviewQuestion
 
     session = question.session
+    style = _effective_style(session)
     model = get_chat_model("answer_evaluation").with_structured_output(AnswerEvaluationResult)
     prompt = ChatPromptTemplate.from_messages(
         [
             (
                 "system",
-                "You are {avatar_name}, a {category} evaluating a candidate's interview answer. "
-                "Score fairly on a 0-100 scale for each dimension. Give concise, constructive "
-                "feedback in {language}. Only propose a follow-up question if the answer was "
+                "You are {avatar_name}, a {category} evaluating a candidate's interview answer out "
+                "loud, in conversation -- not writing a written report. Your interview style: "
+                "{interview_style}. Speaking style: {speaking_style}. Let that style shape your tone "
+                "-- a Strict HR persona is more exacting, a Mentor persona is warmer and more "
+                "encouraging -- but score fairly on a 0-100 scale for each dimension regardless of "
+                "tone: technical accuracy, communication, relevance to the question, confidence, "
+                "voice clarity (fluency/pacing as shown in the transcript, not audio quality), "
+                "grammar, and quality of problem-solving approach. Write feedback as you'd actually "
+                "say it to their face: open with a short, natural reaction (e.g. 'Good, that's "
+                "clear.' / 'Nice, I like that example.' / 'Hmm, a bit thin, but okay.') that matches "
+                "how well they actually did, then at most one brief constructive sentence. 1-2 "
+                "sentences total, in {language}. Only propose a follow-up question if the answer was "
                 "vague, incomplete, or invites a natural deeper probe -- otherwise leave it null.",
             ),
             ("human", "Question ({question_type}): {question_text}\n\nCandidate's answer:\n{answer_text}"),
@@ -226,6 +300,8 @@ def evaluate_answer(*, question, answer) -> dict:
         {
             "avatar_name": session.avatar.name,
             "category": session.avatar.get_category_display(),
+            "interview_style": style["interview_style"],
+            "speaking_style": style["speaking_style"],
             "language": _language_name(session.language),
             "question_type": question.question_type,
             "question_text": question.question_text,
@@ -240,6 +316,9 @@ def evaluate_answer(*, question, answer) -> dict:
             "communication_score": result.communication_score,
             "relevance_score": result.relevance_score,
             "confidence_score": result.confidence_score,
+            "voice_clarity_score": result.voice_clarity_score,
+            "grammar_score": result.grammar_score,
+            "problem_solving_score": result.problem_solving_score,
             "feedback_text": result.feedback,
         },
     )
@@ -279,11 +358,17 @@ def aggregate_session_report(*, session) -> dict:
         communication=Avg("communication_score"),
         confidence=Avg("confidence_score"),
         relevance=Avg("relevance_score"),
+        voice_clarity=Avg("voice_clarity_score"),
+        grammar=Avg("grammar_score"),
+        problem_solving=Avg("problem_solving_score"),
     )
     technical = round(float(aggregates["technical"] or 0), 2)
     communication = round(float(aggregates["communication"] or 0), 2)
     confidence = round(float(aggregates["confidence"] or 0), 2)
     relevance = round(float(aggregates["relevance"] or 0), 2)
+    voice_clarity = round(float(aggregates["voice_clarity"] or 0), 2)
+    grammar = round(float(aggregates["grammar"] or 0), 2)
+    problem_solving = round(float(aggregates["problem_solving"] or 0), 2)
 
     resume_based = evaluations.filter(answer__question__question_type=InterviewQuestion.QuestionType.RESUME_BASED)
     resume_based_avg = resume_based.aggregate(avg=Avg("relevance_score"))["avg"]
@@ -291,9 +376,35 @@ def aggregate_session_report(*, session) -> dict:
 
     body_language, eye_contact = _proctoring_derived_scores(session)
 
-    overall = round((technical + communication + confidence + body_language + eye_contact + resume_matching) / 6, 2)
+    overall = round(
+        (
+            technical
+            + communication
+            + confidence
+            + body_language
+            + eye_contact
+            + resume_matching
+            + voice_clarity
+            + grammar
+            + problem_solving
+        )
+        / 9,
+        2,
+    )
 
-    summary = _summarize_session(session, evaluations)
+    scores = {
+        "overall": overall,
+        "technical": technical,
+        "communication": communication,
+        "confidence": confidence,
+        "body_language": body_language,
+        "eye_contact": eye_contact,
+        "resume_matching": resume_matching,
+        "voice_clarity": voice_clarity,
+        "grammar": grammar,
+        "problem_solving": problem_solving,
+    }
+    summary = _summarize_session(session, evaluations, scores)
 
     return {
         "overall_score": overall,
@@ -303,9 +414,20 @@ def aggregate_session_report(*, session) -> dict:
         "body_language_score": body_language,
         "eye_contact_score": eye_contact,
         "resume_matching_score": resume_matching,
+        "voice_clarity_score": voice_clarity,
+        "grammar_score": grammar,
+        "problem_solving_score": problem_solving,
         "strengths": summary.strengths,
         "weaknesses": summary.weaknesses,
         "improvement_tips": summary.improvement_tips,
+        "spoken_summary": summary.spoken_summary,
+        "learning_roadmap": summary.learning_roadmap,
+        "career_suggestions": summary.career_suggestions,
+        "hiring_recommendation": summary.hiring_recommendation,
+        "hiring_recommendation_reason": summary.hiring_recommendation_reason,
+        "recommended_courses": summary.recommended_courses,
+        "recommended_certifications": summary.recommended_certifications,
+        "recommended_projects": summary.recommended_projects,
     }
 
 
@@ -322,7 +444,7 @@ def _proctoring_derived_scores(session) -> tuple[float, float]:
     return body_language_score, eye_contact_score
 
 
-def _summarize_session(session, evaluations) -> ReportSummaryResult:
+def _summarize_session(session, evaluations, scores: dict) -> ReportSummaryResult:
     transcript_lines = []
     for evaluation in evaluations.select_related("answer__question"):
         q = evaluation.answer.question
@@ -330,6 +452,14 @@ def _summarize_session(session, evaluations) -> ReportSummaryResult:
             f"Q: {q.question_text}\nA: {evaluation.answer.transcript_text}\nFeedback: {evaluation.feedback_text}"
         )
     transcript = "\n\n".join(transcript_lines)[:12000]
+
+    score_summary = (
+        f"Overall: {scores['overall']}/100 | Technical: {scores['technical']}/100 | "
+        f"Communication: {scores['communication']}/100 | Confidence: {scores['confidence']}/100 | "
+        f"Body language: {scores['body_language']}/100 | Eye contact: {scores['eye_contact']}/100 | "
+        f"Resume match: {scores['resume_matching']}/100 | Voice clarity: {scores['voice_clarity']}/100 | "
+        f"Grammar: {scores['grammar']}/100 | Problem solving: {scores['problem_solving']}/100"
+    )
 
     # Reuses the "answer_evaluation" purpose/config -- this is the same kind
     # of task (LLM judging interview performance from text), just summarized
@@ -339,11 +469,31 @@ def _summarize_session(session, evaluations) -> ReportSummaryResult:
         [
             (
                 "system",
-                "You are an interview coach summarizing a candidate's full mock interview. "
-                "Based on the Q&A transcript and per-answer feedback below, identify concrete "
-                "strengths, weaknesses, and 3-5 actionable improvement tips. Respond in {language}.",
+                "You are {avatar_name}, a {category}, wrapping up the mock interview you just "
+                "conducted. Based on the Q&A transcript, per-answer feedback, and the measured "
+                "scores below, identify concrete strengths, weaknesses, and 3-5 actionable "
+                "improvement tips -- then write spoken_summary as the actual closing remarks you'd "
+                "say out loud to the candidate: thank them, speak specifically to what the scores "
+                "show (e.g. only praise eye contact/body language if those scores are actually "
+                "high, only flag them if low), and close encouragingly. Also propose: a short "
+                "learning_roadmap (3-6 concrete next steps); 2-4 realistic career_suggestions; "
+                "2-4 recommended_courses (specific course names or topics); 1-3 "
+                "recommended_certifications; 2-3 recommended_projects that would strengthen their "
+                "profile; and a hiring_recommendation (strong_hire/hire/no_hire/strong_no_hire) with "
+                "a one-sentence hiring_recommendation_reason grounded in the actual scores -- be an "
+                "honest, calibrated judge, not uniformly positive. Never invent numbers not given "
+                "below. Respond entirely in {language} (except the hiring_recommendation value "
+                "itself, which must stay one of the four literal English options).",
             ),
-            ("human", "{transcript}"),
+            ("human", "Measured scores:\n{score_summary}\n\nTranscript:\n{transcript}"),
         ]
     )
-    return (prompt | model).invoke({"transcript": transcript, "language": _language_name(session.language)})
+    return (prompt | model).invoke(
+        {
+            "avatar_name": session.avatar.name,
+            "category": session.avatar.get_category_display(),
+            "score_summary": score_summary,
+            "transcript": transcript,
+            "language": _language_name(session.language),
+        }
+    )

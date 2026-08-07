@@ -17,11 +17,18 @@ export interface WSScores {
   communication: number;
   relevance: number;
   confidence: number;
+  voice_clarity: number;
+  grammar: number;
+  problem_solving: number;
 }
+
+export type AcknowledgementKind = "dont_know" | "skip" | "manual_skip" | "silence_timeout";
 
 export type ServerMessage =
   | { type: "question"; question: WSQuestion; progress: WSProgress }
-  | { type: "evaluation"; question_id: string; feedback: string; scores: WSScores }
+  | { type: "evaluation"; question_id: string; feedback: string; scores: WSScores; audio_base64: string | null }
+  | { type: "acknowledgement"; text: string; audio_base64: string | null; kind: AcknowledgementKind }
+  | { type: "silence_nudge"; text: string; audio_base64: string | null }
   | { type: "interview_complete" }
   | { type: "interview_terminated"; reason: string; violation_count: number }
   | { type: "interview_ended"; session_id: string }
@@ -32,8 +39,9 @@ export type ServerMessage =
 export type ClientMessage =
   | { type: "answer_audio"; audio_base64: string; mime_type: string }
   | { type: "answer_text"; text: string }
-  | { type: "skip_question" }
+  | { type: "skip_question"; reason?: "silence_timeout" }
   | { type: "repeat_question" }
+  | { type: "check_silence" }
   | { type: "end_interview" }
   | { type: "proctoring_event"; event_type: string; metadata?: Record<string, unknown> };
 

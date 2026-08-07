@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { UploadCloud } from "lucide-react";
 
+import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { getApiErrorMessage } from "@/services/apiClient";
@@ -14,6 +16,13 @@ const STATUS_LABEL: Record<CustomAvatar["status"], string> = {
   processing: "Generating...",
   ready: "Ready",
   failed: "Failed",
+};
+
+const STATUS_TONE: Record<CustomAvatar["status"], "slate" | "brand" | "green" | "red"> = {
+  pending: "slate",
+  processing: "brand",
+  ready: "green",
+  failed: "red",
 };
 
 export function CustomAvatarPanel() {
@@ -77,14 +86,22 @@ export function CustomAvatarPanel() {
             }}
           />
           {latest && (
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              {STATUS_LABEL[latest.status]}
-              {latest.status === "failed" && latest.failure_reason ? `: ${latest.failure_reason}` : ""}
-            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <Badge tone={STATUS_TONE[latest.status]} dot>
+                {STATUS_LABEL[latest.status]}
+              </Badge>
+              {latest.status === "failed" && latest.failure_reason && (
+                <span className="text-xs text-slate-500 dark:text-slate-400">{latest.failure_reason}</span>
+              )}
+            </div>
           )}
         </div>
       </div>
-      {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && (
+        <Alert className="mt-3" tone="error">
+          {error}
+        </Alert>
+      )}
     </Card>
   );
 }

@@ -219,7 +219,7 @@ CELERY_TASK_EAGER_PROPAGATES = env.bool("CELERY_TASK_EAGER_PROPAGATES", default=
 # --- LLM / AI provider config (consumed by apps.ai_engine) ---
 LLM_PROVIDER = env("LLM_PROVIDER", default="groq")
 GROQ_API_KEY = env("GROQ_API_KEY", default="")
-GROQ_MODEL = env("GROQ_MODEL", default="llama-3.3-70b-versatile")
+GROQ_MODEL = env("GROQ_MODEL", default="openai/gpt-oss-120b")
 GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
 OPENROUTER_API_KEY = env("OPENROUTER_API_KEY", default="")
 OLLAMA_BASE_URL = env("OLLAMA_BASE_URL", default="http://localhost:11434")

@@ -197,9 +197,16 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # Runs tasks synchronously, in-process, with no broker -- used by the test
-# suite (Phase 8) so `.delay()` calls don't need Redis running.
+# suite (Phase 8) and by config.settings.render (no free Celery worker on
+# Render) so `.delay()` calls don't need Redis/a worker running.
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
-CELERY_TASK_EAGER_PROPAGATES = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+# Deliberately its own env var, not derived from CELERY_TASK_ALWAYS_EAGER:
+# real async mode never raises a task's exception into the caller (the
+# worker fails independently, e.g. a bad SMTP password doesn't 500 the
+# registration request that queued the verification email) -- eager mode on
+# Render should keep that isolation too. Only the test suite (test.py) wants
+# the opposite, so it sets this to True explicitly.
+CELERY_TASK_EAGER_PROPAGATES = env.bool("CELERY_TASK_EAGER_PROPAGATES", default=False)
 
 # --- LLM / AI provider config (consumed by apps.ai_engine) ---
 LLM_PROVIDER = env("LLM_PROVIDER", default="groq")

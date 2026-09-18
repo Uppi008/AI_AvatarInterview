@@ -174,6 +174,14 @@ EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="AI_AvatarInterview <no-reply@aiavatarinterview.com>")
+# Django/smtplib have no timeout by default. When a host silently drops
+# outbound SMTP traffic (rather than rejecting it) instead of failing fast,
+# socket.connect() blocks on the OS-level TCP retry timeout -- which can be
+# minutes, not seconds -- and Celery's 3 retries multiply that into a
+# request that hangs for a very long time (this is what was happening on
+# Render's free plan, which blocks outbound SMTP). A short timeout turns
+# that into a fast, clean failure every time instead.
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 
 # --- Google OAuth ---
 GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")

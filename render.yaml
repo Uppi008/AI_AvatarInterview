@@ -1,7 +1,11 @@
-# Render Blueprint for the backend half of AI_AvatarInterview.
-# The frontend deploys separately to Vercel (see docs/DEPLOY_VERCEL_RENDER.md) --
-# Render's free/starter web services can serve a SPA too, but Vercel's edge
-# CDN + zero-config Vite preview deploys are a better fit for it.
+# Render Blueprint for the backend half of AI_AvatarInterview -- 100% free
+# tier: no Celery worker (Render has no free plan for background workers at
+# all), so resume parsing / AI scoring / report generation run synchronously
+# inside the web request instead, via CELERY_TASK_ALWAYS_EAGER below. Those
+# endpoints respond slower than they would with a real queue, but nothing
+# needs a paid instance or a card on file.
+#
+# The frontend deploys separately to Vercel (see docs/DEPLOY_VERCEL_RENDER.md).
 #
 # Usage: Render dashboard -> New -> Blueprint -> pick this repo -> Apply.
 # Vars marked `sync: false` are prompted for during that flow; fill them in
@@ -10,10 +14,6 @@
 envVarGroups:
   - name: ai-avatarinterview-shared
     envVars:
-      # Shared (not per-service) so the web and worker processes agree on
-      # the same signing keys -- generating these independently per service
-      # would give each process a different key and break anything one
-      # signs that the other needs to verify.
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: JWT_SIGNING_KEY
@@ -37,7 +37,7 @@ envVarGroups:
 
 databases:
   - name: ai-avatarinterview-db
-    plan: starter
+    plan: free
     region: oregon
     databaseName: ai_avatarinterview
     user: ai_avatar_user
@@ -45,14 +45,14 @@ databases:
 services:
   - type: keyvalue
     name: ai-avatarinterview-redis
-    plan: starter
+    plan: free
     region: oregon
     ipAllowList: [] # private network only -- not reachable from the public internet
 
   - type: web
     name: ai-avatarinterview-backend
     runtime: docker
-    plan: starter
+    plan: free
     region: oregon
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
@@ -66,6 +66,10 @@ services:
       - fromGroup: ai-avatarinterview-shared
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.render
+      # No separate Celery worker on the free plan -- .delay() runs the task
+      # inline, synchronously, in the same request instead of queuing it.
+      - key: CELERY_TASK_ALWAYS_EAGER
+        value: "True"
       # Free plan has no Shell/SSH access, so `createsuperuser` can't be run
       # interactively -- these three make the startup command above create
       # it non-interactively instead. `|| true` makes that step a no-op
@@ -96,11 +100,6 @@ services:
           type: keyvalue
           name: ai-avatarinterview-redis
           property: connectionString
-      - key: CELERY_RESULT_BACKEND
-        fromService:
-          type: keyvalue
-          name: ai-avatarinterview-redis
-          property: connectionString
       # Your Vercel frontend URL, e.g. https://ai-avatarinterview.vercel.app
       # (comma-separated if you add a custom domain later).
       - key: CORS_ALLOWED_ORIGINS
@@ -109,39 +108,3 @@ services:
         sync: false
       - key: FRONTEND_BASE_URL
         sync: false
-
-  - type: worker
-    name: ai-avatarinterview-celery-worker
-    runtime: docker
-    plan: starter
-    region: oregon
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    dockerCommand: celery -A config worker -l info --concurrency=2
-    envVars:
-      - fromGroup: ai-avatarinterview-shared
-      - key: DJANGO_SETTINGS_MODULE
-        value: config.settings.render
-      - key: DJANGO_DEBUG
-        value: "False"
-      - key: DJANGO_ALLOWED_HOSTS
-        value: localhost,127.0.0.1
-      - key: DATABASE_URL
-        fromDatabase:
-          name: ai-avatarinterview-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: ai-avatarinterview-redis
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          type: keyvalue
-          name: ai-avatarinterview-redis
-          property: connectionString
-      - key: CELERY_RESULT_BACKEND
-        fromService:
-          type: keyvalue
-          name: ai-avatarinterview-redis
-          property: connectionString

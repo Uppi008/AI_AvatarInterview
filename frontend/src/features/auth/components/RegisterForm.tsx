@@ -2,10 +2,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import { useAppDispatch } from "@/app/hooks";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { register as registerUser } from "@/features/auth/authSlice";
@@ -27,8 +27,8 @@ type FormValues = z.infer<typeof schema>;
 export function RegisterForm() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
-  const [registered, setRegistered] = useState(false);
 
   const {
     register,
@@ -40,19 +40,11 @@ export function RegisterForm() {
     setFormError(null);
     const result = await dispatch(registerUser(values));
     if (registerUser.fulfilled.match(result)) {
-      setRegistered(true);
+      navigate("/dashboard");
     } else {
       setFormError(result.payload ?? "Registration failed.");
     }
   };
-
-  if (registered) {
-    return (
-      <Alert tone="success" className="p-5">
-        Check your inbox — we've sent a verification link to finish creating your account.
-      </Alert>
-    );
-  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>

@@ -19,6 +19,10 @@ export const tokenStorage = {
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
+  // Without this, a hung backend request (e.g. a free-tier host waking from
+  // an idle spin-down) leaves the UI spinning forever instead of surfacing
+  // a clear, retryable error.
+  timeout: 60_000,
 });
 
 apiClient.interceptors.request.use((config) => {

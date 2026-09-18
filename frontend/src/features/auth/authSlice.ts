@@ -35,7 +35,14 @@ export const register = createAsyncThunk<User, RegisterPayload, { rejectValue: s
   "auth/register",
   async (payload, { rejectWithValue }) => {
     try {
-      const { data } = await authApi.register(payload);
+      await authApi.register(payload);
+      // The backend doesn't gate login on is_email_verified, and the
+      // verification email can silently never arrive (e.g. Render's free
+      // plan blocks outbound SMTP) -- so log the new account in immediately
+      // with the same credentials instead of stranding the user on a
+      // "check your email" dead end.
+      const { data } = await authApi.login({ email: payload.email, password: payload.password });
+      tokenStorage.set(data.access, data.refresh);
       return data.user;
     } catch (error) {
       return rejectWithValue(getApiErrorMessage(error, "Registration failed."));
@@ -86,8 +93,9 @@ const authSlice = createSlice({
         state.status = "loading";
         state.error = null;
       })
-      .addCase(register.fulfilled, (state) => {
+      .addCase(register.fulfilled, (state, action) => {
         state.status = "succeeded";
+        state.user = action.payload;
       })
       .addCase(register.rejected, (state, action) => {
         state.status = "failed";

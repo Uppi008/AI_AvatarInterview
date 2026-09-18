@@ -61,9 +61,15 @@ describe("authSlice", () => {
   });
 
   describe("register", () => {
-    it("succeeds without logging the user in (email verification required)", async () => {
+    it("logs the new account in immediately after registering", async () => {
+      // Verification email delivery isn't guaranteed (e.g. some hosts block
+      // outbound SMTP) and the backend doesn't gate login on it, so this
+      // chains straight into a login call with the same credentials.
       vi.mocked(authApi.register).mockResolvedValue({
         data: { detail: "Check your email.", user: mockUser },
+      } as never);
+      vi.mocked(authApi.login).mockResolvedValue({
+        data: { access: "access-tok", refresh: "refresh-tok", user: mockUser },
       } as never);
       const store = makeStore();
 
@@ -71,7 +77,24 @@ describe("authSlice", () => {
         register({ email: mockUser.email, full_name: "Demo", password: "pass", password_confirm: "pass" })
       );
 
+      expect(authApi.login).toHaveBeenCalledWith({ email: mockUser.email, password: "pass" });
       expect(store.getState().auth.status).toBe("succeeded");
+      expect(store.getState().auth.user).toEqual(mockUser);
+      expect(tokenStorage.getAccess()).toBe("access-tok");
+    });
+
+    it("surfaces an error and doesn't store tokens if the follow-up login fails", async () => {
+      vi.mocked(authApi.register).mockResolvedValue({
+        data: { detail: "Check your email.", user: mockUser },
+      } as never);
+      vi.mocked(authApi.login).mockRejectedValue(new Error("boom"));
+      const store = makeStore();
+
+      await store.dispatch(
+        register({ email: mockUser.email, full_name: "Demo", password: "pass", password_confirm: "pass" })
+      );
+
+      expect(store.getState().auth.status).toBe("failed");
       expect(tokenStorage.getAccess()).toBeNull();
     });
   });

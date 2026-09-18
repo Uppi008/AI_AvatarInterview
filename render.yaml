@@ -59,12 +59,23 @@ services:
     dockerCommand: >-
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
+             (python manage.py createsuperuser --noinput || true) &&
              daphne -b 0.0.0.0 -p $PORT config.asgi:application"
     healthCheckPath: /healthz/
     envVars:
       - fromGroup: ai-avatarinterview-shared
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings.render
+      # Free plan has no Shell/SSH access, so `createsuperuser` can't be run
+      # interactively -- these three make the startup command above create
+      # it non-interactively instead. `|| true` makes that step a no-op
+      # (not a crash) on every later restart, once the user already exists.
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_FULL_NAME
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS

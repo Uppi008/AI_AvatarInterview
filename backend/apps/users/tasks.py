@@ -7,7 +7,7 @@ from apps.notifications.services import send_transactional_email
 from .models import User
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@shared_task(bind=True, max_retries=2, default_retry_delay=60)
 def send_verification_email_task(self, *, user_id: str, token: str):
     try:
         user = User.objects.get(id=user_id)
@@ -26,7 +26,7 @@ def send_verification_email_task(self, *, user_id: str, token: str):
         raise self.retry(exc=exc)
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@shared_task(bind=True, max_retries=2, default_retry_delay=60)
 def send_password_reset_email_task(self, *, user_id: str, token: str):
     try:
         user = User.objects.get(id=user_id)

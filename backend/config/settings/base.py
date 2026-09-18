@@ -181,7 +181,7 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="AI_AvatarInterview <no-r
 # request that hangs for a very long time (this is what was happening on
 # Render's free plan, which blocks outbound SMTP). A short timeout turns
 # that into a fast, clean failure every time instead.
-EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=3)
 
 # --- Google OAuth ---
 GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")

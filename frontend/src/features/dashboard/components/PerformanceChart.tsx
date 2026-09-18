@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -41,7 +41,13 @@ export function PerformanceChart({ data }: { data: PerformancePoint[] }) {
       ) : (
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+            <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+              <defs>
+                <linearGradient id="performanceFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={lineColor} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <CartesianGrid stroke={gridColor} strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="label"
@@ -60,20 +66,24 @@ export function PerformanceChart({ data }: { data: PerformancePoint[] }) {
                 contentStyle={{
                   background: theme === "dark" ? "#0f172a" : "#ffffff",
                   border: `1px solid ${gridColor}`,
-                  borderRadius: 8,
+                  borderRadius: 10,
+                  boxShadow: "0 8px 24px -8px rgba(15, 23, 42, 0.25)",
                   fontSize: 13,
                 }}
                 labelStyle={{ color: tickColor }}
               />
-              <Line
+              <Area
                 type="monotone"
                 dataKey="score"
                 stroke={lineColor}
-                strokeWidth={2}
+                strokeWidth={2.5}
+                fill="url(#performanceFill)"
                 dot={{ r: 3, fill: lineColor, strokeWidth: 0 }}
                 activeDot={{ r: 5 }}
+                animationDuration={900}
+                animationEasing="ease-out"
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       )}

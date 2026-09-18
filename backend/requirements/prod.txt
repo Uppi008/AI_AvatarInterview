@@ -5,3 +5,7 @@
 # is what actually runs in production too -- see docker-compose.prod.yml.
 sentry-sdk==2.7.0
 django-storages[boto3]==1.14.3
+
+# Only used by config.settings.render (Render.com has no nginx sidecar to
+# serve /static/, unlike the docker-compose.prod.yml VPS path).
+whitenoise==6.7.0

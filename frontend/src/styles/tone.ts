@@ -59,3 +59,12 @@ export const toneText: Record<ToneKey, string> = {
   error: "text-red-600 dark:text-red-400",
   neutral: "text-slate-600 dark:text-slate-400",
 };
+
+/** Solid gradient + white icon, with matching glow shadow -- high-emphasis badges (StatCard). */
+export const toneGradientBg: Record<ToneKey, string> = {
+  brand: "bg-gradient-to-br from-brand-500 to-indigo-600 text-white shadow-lg shadow-brand-500/30",
+  success: "bg-gradient-to-br from-green-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30",
+  warning: "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30",
+  error: "bg-gradient-to-br from-red-400 to-rose-600 text-white shadow-lg shadow-red-500/30",
+  neutral: "bg-gradient-to-br from-slate-400 to-slate-600 text-white shadow-lg shadow-slate-500/20",
+};

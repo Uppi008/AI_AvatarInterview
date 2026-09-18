@@ -1,0 +1,136 @@
+# Render Blueprint for the backend half of AI_AvatarInterview.
+# The frontend deploys separately to Vercel (see docs/DEPLOY_VERCEL_RENDER.md) --
+# Render's free/starter web services can serve a SPA too, but Vercel's edge
+# CDN + zero-config Vite preview deploys are a better fit for it.
+#
+# Usage: Render dashboard -> New -> Blueprint -> pick this repo -> Apply.
+# Vars marked `sync: false` are prompted for during that flow; fill them in
+# per docs/DEPLOY_VERCEL_RENDER.md.
+
+envVarGroups:
+  - name: ai-avatarinterview-shared
+    envVars:
+      # Shared (not per-service) so the web and worker processes agree on
+      # the same signing keys -- generating these independently per service
+      # would give each process a different key and break anything one
+      # signs that the other needs to verify.
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: JWT_SIGNING_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+
+databases:
+  - name: ai-avatarinterview-db
+    plan: starter
+    region: oregon
+    databaseName: ai_avatarinterview
+    user: ai_avatar_user
+
+services:
+  - type: keyvalue
+    name: ai-avatarinterview-redis
+    plan: starter
+    region: oregon
+    ipAllowList: [] # private network only -- not reachable from the public internet
+
+  - type: web
+    name: ai-avatarinterview-backend
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: >-
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             daphne -b 0.0.0.0 -p $PORT config.asgi:application"
+    healthCheckPath: /healthz/
+    envVars:
+      - fromGroup: ai-avatarinterview-shared
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.render
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: localhost,127.0.0.1
+      - key: DJANGO_SECURE_SSL_REDIRECT
+        value: "True"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-avatarinterview-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: ai-avatarinterview-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: ai-avatarinterview-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: ai-avatarinterview-redis
+          property: connectionString
+      # Your Vercel frontend URL, e.g. https://ai-avatarinterview.vercel.app
+      # (comma-separated if you add a custom domain later).
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: FRONTEND_BASE_URL
+        sync: false
+
+  - type: worker
+    name: ai-avatarinterview-celery-worker
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: celery -A config worker -l info --concurrency=2
+    envVars:
+      - fromGroup: ai-avatarinterview-shared
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.render
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: localhost,127.0.0.1
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-avatarinterview-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: ai-avatarinterview-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: keyvalue
+          name: ai-avatarinterview-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: keyvalue
+          name: ai-avatarinterview-redis
+          property: connectionString

@@ -97,6 +97,7 @@ Both suites are fully hermetic (SQLite/in-memory channel layers, no real Groq/Re
 - [Database design](docs/DATABASE.md) — ER diagram, normalization decisions, indexing strategy
 - [API reference](docs/API.md) — endpoint list, auth flow, the live-interview WebSocket protocol
 - [Deployment guide](docs/DEPLOYMENT.md) — production Docker Compose, TLS, scaling, backups
+- [Vercel + Render deployment](docs/DEPLOY_VERCEL_RENDER.md) — frontend on Vercel, backend on Render, no VPS needed
 - [Developer guide](docs/DEVELOPER_GUIDE.md) — conventions, how to extend it, hard-won gotchas
 - [Roadmap / build history](docs/ROADMAP.md) — every phase, how it was verified, every bug that testing caught, every known limitation
 

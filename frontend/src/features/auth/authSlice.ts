@@ -22,6 +22,7 @@ export const login = createAsyncThunk<User, LoginPayload, { rejectValue: string 
   "auth/login",
   async (payload, { rejectWithValue }) => {
     try {
+      await authApi.wakeUp();
       const { data } = await authApi.login(payload);
       tokenStorage.set(data.access, data.refresh);
       return data.user;
@@ -35,6 +36,8 @@ export const register = createAsyncThunk<User, RegisterPayload, { rejectValue: s
   "auth/register",
   async (payload, { rejectWithValue }) => {
     try {
+      // The free-tier backend may be asleep; wait for it before registering.
+      await authApi.wakeUp();
       await authApi.register(payload);
       // The backend doesn't gate login on is_email_verified, and the
       // verification email can silently never arrive (e.g. Render's free

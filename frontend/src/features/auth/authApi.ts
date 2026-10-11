@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/apiClient";
+import { apiClient, wakeBackend } from "@/services/apiClient";
 import type {
   LoginPayload,
   LoginResponse,
@@ -8,6 +8,8 @@ import type {
 } from "./types";
 
 export const authApi = {
+  wakeUp: () => wakeBackend(),
+
   register: (payload: RegisterPayload) =>
     apiClient.post<{ detail: string; user: User }>("/auth/register/", payload),
 

@@ -65,6 +65,12 @@ describe("getApiErrorMessage", () => {
     expect(getApiErrorMessage(error)).toBe("Passwords do not match.");
   });
 
+  it("explains an unreachable server instead of using the fallback", () => {
+    const error = new AxiosError("Network Error", "ERR_NETWORK");
+
+    expect(getApiErrorMessage(error, "Registration failed.")).toMatch(/can't reach the server/i);
+  });
+
   it("uses the fallback for a non-axios error", () => {
     expect(getApiErrorMessage(new Error("boom"), "Something went wrong.")).toBe("Something went wrong.");
   });

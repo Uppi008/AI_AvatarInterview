@@ -74,6 +74,31 @@ apiClient.interceptors.response.use(
   }
 );
 
+/**
+ * Polls the backend's /healthz/ until it answers (or `maxWaitMs` passes).
+ *
+ * Render's free plan spins the backend down after ~15 min idle, and a cold
+ * start takes 1-2 minutes. During that window Render's proxy answers with an
+ * error page that has no CORS headers, so the browser reports a bare network
+ * error and auth requests fail with no usable message. Waking it first lets
+ * the real request land on a running server. Never throws: if the deadline
+ * passes, the caller's own request surfaces the error.
+ */
+export async function wakeBackend(maxWaitMs = 150_000): Promise<void> {
+  const base = import.meta.env.VITE_API_BASE_URL;
+  if (!base) return;
+  const healthUrl = new URL("/healthz/", new URL(base, window.location.origin)).toString();
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    try {
+      await axios.get(healthUrl, { timeout: 20_000 });
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+    }
+  }
+}
+
 /** Shape of the {"success": false, "error": {...}} envelope common/exceptions.py returns. */
 export interface ApiErrorPayload {
   success: false;
@@ -86,13 +111,20 @@ export interface ApiErrorPayload {
 
 export function getApiErrorMessage(error: unknown, fallback = "Something went wrong. Please try again."): string {
   if (axios.isAxiosError(error)) {
-    const payload = error.response?.data as ApiErrorPayload | undefined;
-    const detail = payload?.error?.detail;
-    if (typeof detail === "string") return detail;
+    // No response at all: timeout, DNS/network failure, or a CORS-less error
+    // page from the host's proxy while the backend is still starting up.
+    if (!error.response) {
+      return "Can't reach the server right now -- it may be starting up. Please wait a minute and try again.";
+    }
+    const payload = error.response.data as ApiErrorPayload | undefined;
+    // Field errors are more specific than the envelope's generic
+    // "Validation failed." detail, so prefer them when present.
     if (payload?.error?.fields) {
       const first = Object.values(payload.error.fields)[0];
       if (Array.isArray(first)) return first[0];
     }
+    const detail = payload?.error?.detail;
+    if (typeof detail === "string") return detail;
   }
   return fallback;
 }

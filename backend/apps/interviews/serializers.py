@@ -35,13 +35,30 @@ class InterviewQuestionSerializer(serializers.ModelSerializer):
 class InterviewSessionListSerializer(serializers.ModelSerializer):
     avatar_name = serializers.CharField(source="avatar.name", read_only=True)
     avatar_image = serializers.ImageField(source="avatar.image", read_only=True)
+    answered_count = serializers.SerializerMethodField()
+    report_score = serializers.SerializerMethodField()
 
     class Meta:
         model = InterviewSession
         fields = [
             "id", "avatar", "avatar_name", "avatar_image", "language", "personality", "status",
             "scheduled_at", "started_at", "ended_at", "duration_seconds", "violation_count",
+            "answered_count", "report_score",
         ]
+
+    def get_answered_count(self, obj) -> int:
+        # Annotated by the viewset's queryset; computed directly for sessions
+        # serialized outside it (e.g. the create/end responses).
+        annotated = getattr(obj, "answered_count", None)
+        if annotated is not None:
+            return annotated
+        return InterviewAnswer.objects.filter(question__session=obj).count()
+
+    def get_report_score(self, obj) -> float | None:
+        try:
+            return float(obj.report.overall_score)
+        except InterviewSession.report.RelatedObjectDoesNotExist:
+            return None
 
 
 class InterviewSessionDetailSerializer(InterviewSessionListSerializer):

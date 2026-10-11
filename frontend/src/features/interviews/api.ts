@@ -1,6 +1,8 @@
 import { apiClient } from "@/services/apiClient";
 import type { PaginatedResponse } from "@/types/api";
 
+import type { InterviewReport } from "@/features/reports/types";
+
 import type { InterviewSession, InterviewSessionDetail, StartInterviewPayload } from "./types";
 
 export const interviewsApi = {
@@ -12,4 +14,9 @@ export const interviewsApi = {
     apiClient.post<InterviewSessionDetail>("/interviews/", payload),
 
   end: (id: string) => apiClient.post<InterviewSessionDetail>(`/interviews/${id}/end/`),
+
+  /** Builds the report on demand, for sessions whose automatic generation failed. */
+  generateReport: (id: string) =>
+    // Scoring runs inline and calls the LLM, so allow longer than the default.
+    apiClient.post<InterviewReport>(`/interviews/${id}/generate-report/`, undefined, { timeout: 180_000 }),
 };

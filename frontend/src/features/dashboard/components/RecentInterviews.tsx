@@ -9,6 +9,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Ca
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { InterviewSession, InterviewStatus } from "@/features/interviews/types";
 import { cn } from "@/utils/cn";
+import { LANGUAGE_LABEL, formatDuration, scoreBadgeClasses } from "@/utils/score";
 
 const STATUS_TONE: Record<InterviewStatus, "green" | "brand" | "amber" | "red" | "slate"> = {
   completed: "green",
@@ -17,24 +18,6 @@ const STATUS_TONE: Record<InterviewStatus, "green" | "brand" | "amber" | "red" |
   terminated: "red",
   abandoned: "slate",
 };
-
-const LANGUAGE_LABEL: Record<InterviewSession["language"], string> = {
-  en: "English",
-  hi: "हिन्दी",
-  te: "తెలుగు",
-};
-
-function formatDuration(seconds: number) {
-  if (!seconds) return null;
-  const minutes = Math.round(seconds / 60);
-  return minutes < 1 ? "<1 min" : `${minutes} min`;
-}
-
-function scoreClasses(score: number) {
-  if (score >= 75) return "bg-green-50 text-green-700 ring-green-600/15 dark:bg-green-900/30 dark:text-green-300";
-  if (score >= 50) return "bg-amber-50 text-amber-700 ring-amber-600/15 dark:bg-amber-900/30 dark:text-amber-300";
-  return "bg-red-50 text-red-700 ring-red-600/15 dark:bg-red-900/30 dark:text-red-300";
-}
 
 interface RecentInterviewsProps {
   sessions: InterviewSession[];
@@ -118,7 +101,7 @@ export function RecentInterviews({ sessions, scores }: RecentInterviewsProps) {
                     <span
                       className={cn(
                         "hidden shrink-0 rounded-lg px-2.5 py-1 text-sm font-bold ring-1 ring-inset sm:inline-block",
-                        scoreClasses(score)
+                        scoreBadgeClasses(score)
                       )}
                     >
                       {Math.round(score)}

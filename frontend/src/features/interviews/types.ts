@@ -24,6 +24,10 @@ export interface InterviewSession {
   ended_at: string | null;
   duration_seconds: number;
   violation_count: number;
+  /** Questions with a recorded answer. */
+  answered_count: number;
+  /** The report's overall score, or null if no report exists yet. */
+  report_score: number | null;
 }
 
 export interface InterviewQuestion {
@@ -34,7 +38,24 @@ export interface InterviewQuestion {
   order_index: number;
   asked_at: string | null;
   skipped: boolean;
+  answer: InterviewAnswer | null;
   follow_ups: InterviewQuestion[];
+}
+
+export interface AnswerEvaluation {
+  technical_score: string;
+  communication_score: string;
+  relevance_score: string;
+  confidence_score: string;
+  feedback_text: string;
+}
+
+export interface InterviewAnswer {
+  transcript_text: string;
+  audio_file: string | null;
+  response_time_seconds: number | null;
+  answered_at: string;
+  evaluation: AnswerEvaluation | null;
 }
 
 export interface InterviewSessionDetail extends InterviewSession {

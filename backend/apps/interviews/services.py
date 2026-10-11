@@ -65,3 +65,17 @@ def end_session(*, session: InterviewSession, reason: str = "") -> InterviewSess
 
     generate_report_task.delay(session_id=str(session.id))
     return session
+
+
+def generate_report_now(*, session: InterviewSession):
+    """Builds (or rebuilds) a finished session's report synchronously.
+
+    The recovery path for when the post-interview task failed (e.g. a
+    transient LLM error -- with eager Celery on the free tier there is no
+    worker left to retry it). Raises ValueError if no answers were scored.
+    """
+    from apps.ai_engine.services import aggregate_session_report
+    from apps.reports.services import create_report_and_send_email
+
+    report_data = aggregate_session_report(session=session)
+    return create_report_and_send_email(session=session, report_data=report_data)

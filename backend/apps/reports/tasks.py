@@ -18,7 +18,10 @@ def render_and_email_report_task(self, *, report_id: str):
     from .services import render_pdf
 
     pdf_bytes = render_pdf(report)
-    report.pdf_file.save(f"{report.id}.pdf", ContentFile(pdf_bytes), save=False)
+    # Persist the PDF before attempting email: on hosts that block outbound
+    # SMTP (e.g. Render's free plan) the send below raises, and the report
+    # must still be downloadable from the dashboard.
+    report.pdf_file.save(f"{report.id}.pdf", ContentFile(pdf_bytes), save=True)
 
     message = (
         f"Hi {user.full_name},\n\n"
@@ -39,4 +42,4 @@ def render_and_email_report_task(self, *, report_id: str):
         attachment=attachment,
     )
     report.emailed_at = timezone.now()
-    report.save(update_fields=["pdf_file", "emailed_at"])
+    report.save(update_fields=["emailed_at"])

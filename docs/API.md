@@ -84,10 +84,11 @@ Errors follow one envelope shape everywhere (`common/exceptions.py`):
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/interviews/` | student | Own sessions. |
+| GET | `/interviews/` | student | Own sessions, newest first. Each row includes `answered_count` (questions with a recorded answer) and `report_score` (the report's overall score, or `null` if no report exists). |
 | POST | `/interviews/` | student | Starts a session: `{avatar_id, resume_id? (defaults to active resume), language}`. Generates the question bank synchronously (needs a real `GROQ_API_KEY` — fails cleanly with an error, no orphaned session, if not configured). Returns the full session detail including generated `questions`. |
 | GET | `/interviews/{id}/` | student | Session detail with nested `questions` (each with its `answer` + `evaluation` if answered). |
 | POST | `/interviews/{id}/end/` | student | Ends the session early; triggers async report generation + email. |
+| POST | `/interviews/{id}/generate-report/` | student | Builds (or rebuilds) the report synchronously — the recovery path when automatic generation failed. `201` with the report; `400` if the session isn't finished or has no answered questions; `503` if scoring fails (retryable). |
 
 The actual live interview (speaking questions, listening for answers, skip/repeat, proctoring) happens over **WebSocket**, not these REST endpoints — see below.
 

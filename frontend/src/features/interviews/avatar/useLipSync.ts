@@ -54,8 +54,11 @@ export function useLipSync(audioElement: HTMLAudioElement | null, isPlaying: boo
       setAmplitude(0);
       return;
     }
-    const analyser = analyserRef.current;
-    const data = dataRef.current;
+    // A null element means the browser's own voice is talking -- the analyser
+    // would only hear the silent element.
+    const wired = !!audioElement && audioElement === wiredElementRef.current;
+    const analyser = wired ? analyserRef.current : null;
+    const data = wired ? dataRef.current : null;
     let rafId: number;
 
     const tick = (now: number) => {

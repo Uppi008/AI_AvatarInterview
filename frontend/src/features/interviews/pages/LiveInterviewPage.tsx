@@ -29,6 +29,7 @@ export function LiveInterviewPage() {
   const { isRecording, start: startRecording, stop: stopRecording } = useAudioRecorder();
 
   const [avatar, setAvatar] = useState<{ name: string; image: string } | null>(null);
+  const [language, setLanguage] = useState("en");
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export function LiveInterviewPage() {
     if (!sessionId) return;
     void interviewsApi.retrieve(sessionId).then(({ data }) => {
       setAvatar({ name: data.avatar_name, image: data.avatar_image });
+      setLanguage(data.language);
     });
   }, [sessionId]);
 
@@ -70,25 +72,30 @@ export function LiveInterviewPage() {
     if (socket.question && socket.question.id !== lastPlayedQuestionId.current) {
       lastPlayedQuestionId.current = socket.question.id;
       setAwaitingResponse(false);
-      if (socket.question.audio_base64) {
-        enqueue(socket.question.audio_base64);
-      }
+      enqueue({ audioBase64: socket.question.audio_base64, text: socket.question.text, language });
     }
-  }, [socket.question, enqueue]);
+  }, [socket.question, enqueue, language]);
 
   // Feedback/acknowledgement/nudge audio queues behind whatever's still
   // playing (see useAudioPlayback) so e.g. "Nice, let's continue" finishes
-  // before the next question starts talking over it.
+  // before the next question starts talking over it. Without server audio,
+  // the text is read by the browser's own voice instead.
   useEffect(() => {
-    if (socket.lastEvaluation?.audioBase64) enqueue(socket.lastEvaluation.audioBase64);
+    const e = socket.lastEvaluation;
+    if (e) enqueue({ audioBase64: e.audioBase64, text: e.feedback, language });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per message
   }, [socket.lastEvaluation, enqueue]);
 
   useEffect(() => {
-    if (socket.acknowledgement?.audioBase64) enqueue(socket.acknowledgement.audioBase64);
+    const a = socket.acknowledgement;
+    if (a) enqueue({ audioBase64: a.audioBase64, text: a.text, language });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per message
   }, [socket.acknowledgement, enqueue]);
 
   useEffect(() => {
-    if (socket.silenceNudge?.audioBase64) enqueue(socket.silenceNudge.audioBase64);
+    const n = socket.silenceNudge;
+    if (n) enqueue({ audioBase64: n.audioBase64, text: n.text, language });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per message
   }, [socket.silenceNudge, enqueue]);
 
   // Case 3: a candidate who hasn't started answering gets a spoken check-in

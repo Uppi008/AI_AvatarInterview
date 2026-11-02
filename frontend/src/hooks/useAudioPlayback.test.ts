@@ -50,7 +50,7 @@ describe("useAudioPlayback", () => {
   it("plays the first enqueued clip immediately", async () => {
     const { result } = renderHook(() => useAudioPlayback());
 
-    await act(async () => result.current.enqueue("clip-1"));
+    await act(async () => result.current.enqueue({ audioBase64: "clip-1" }));
 
     expect(audio().played).toEqual([clip("clip-1")]);
     expect(result.current.isPlaying).toBe(true);
@@ -59,8 +59,8 @@ describe("useAudioPlayback", () => {
   it("queues a second clip instead of interrupting the first -- plays it only once the first ends", async () => {
     const { result } = renderHook(() => useAudioPlayback());
 
-    await act(async () => result.current.enqueue("clip-1"));
-    await act(async () => result.current.enqueue("clip-2"));
+    await act(async () => result.current.enqueue({ audioBase64: "clip-1" }));
+    await act(async () => result.current.enqueue({ audioBase64: "clip-2" }));
 
     expect(audio().played).toEqual([clip("clip-1")]);
 
@@ -73,9 +73,9 @@ describe("useAudioPlayback", () => {
   it("reuses one audio element for every clip (mobile approves playback per element)", async () => {
     const { result } = renderHook(() => useAudioPlayback());
 
-    await act(async () => result.current.enqueue("clip-1"));
+    await act(async () => result.current.enqueue({ audioBase64: "clip-1" }));
     await act(async () => audio().simulateEnded());
-    await act(async () => result.current.enqueue("clip-2"));
+    await act(async () => result.current.enqueue({ audioBase64: "clip-2" }));
 
     expect(FakeAudio.instances).toHaveLength(1);
   });
@@ -83,7 +83,7 @@ describe("useAudioPlayback", () => {
   it("sets isPlaying to false once the queue drains", async () => {
     const { result } = renderHook(() => useAudioPlayback());
 
-    await act(async () => result.current.enqueue("clip-1"));
+    await act(async () => result.current.enqueue({ audioBase64: "clip-1" }));
     await act(async () => audio().simulateEnded());
 
     expect(result.current.isPlaying).toBe(false);
@@ -92,8 +92,8 @@ describe("useAudioPlayback", () => {
   it("stop() clears the queue so nothing further plays", async () => {
     const { result } = renderHook(() => useAudioPlayback());
 
-    await act(async () => result.current.enqueue("clip-1"));
-    await act(async () => result.current.enqueue("clip-2"));
+    await act(async () => result.current.enqueue({ audioBase64: "clip-1" }));
+    await act(async () => result.current.enqueue({ audioBase64: "clip-2" }));
     act(() => result.current.stop());
 
     expect(result.current.isPlaying).toBe(false);
@@ -108,7 +108,7 @@ describe("useAudioPlayback", () => {
     FakeAudio.blockAutoplay = true;
     const { result } = renderHook(() => useAudioPlayback());
 
-    await act(async () => result.current.enqueue("clip-1"));
+    await act(async () => result.current.enqueue({ audioBase64: "clip-1" }));
 
     expect(result.current.needsUnlock).toBe(true);
     expect(result.current.isPlaying).toBe(false);
@@ -119,5 +119,33 @@ describe("useAudioPlayback", () => {
     expect(audio().played).toEqual([clip("clip-1")]);
     expect(result.current.needsUnlock).toBe(false);
     expect(result.current.isPlaying).toBe(true);
+  });
+
+  it("reads the text with the browser's voice when the server sent no audio", async () => {
+    // Regression: when the server's TTS provider failed, the interviewer was
+    // completely silent.
+    const spoken: { text: string; lang: string; onend: (() => void) | null }[] = [];
+    vi.stubGlobal(
+      "SpeechSynthesisUtterance",
+      class {
+        lang = "";
+        onend: (() => void) | null = null;
+        onerror = null;
+        constructor(public text: string) {
+          spoken.push(this);
+        }
+      }
+    );
+    vi.stubGlobal("speechSynthesis", { speak: vi.fn(), cancel: vi.fn() });
+    const { result } = renderHook(() => useAudioPlayback());
+
+    await act(async () => result.current.enqueue({ audioBase64: null, text: "Tell me about yourself", language: "te" }));
+
+    expect(spoken).toMatchObject([{ text: "Tell me about yourself", lang: "te-IN" }]);
+    expect(result.current.isPlaying).toBe(true);
+    expect(result.current.audioElement).toBeNull();
+
+    await act(async () => spoken[0].onend?.());
+    expect(result.current.isPlaying).toBe(false);
   });
 });

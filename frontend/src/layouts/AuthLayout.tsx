@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { BackendStatusBanner } from "@/components/BackendStatusBanner";
 import { AmbientBackground } from "@/components/fx/AmbientBackground";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -12,6 +13,9 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <LanguageSwitcher />
         <ThemeToggle />
       </header>
+      <div className="px-4">
+        <BackendStatusBanner />
+      </div>
       <main>{children}</main>
     </div>
   );

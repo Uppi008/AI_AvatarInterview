@@ -84,14 +84,31 @@ apiClient.interceptors.response.use(
  * the real request land on a running server. Never throws: if the deadline
  * passes, the caller's own request surfaces the error.
  */
-export async function wakeBackend(maxWaitMs = 150_000): Promise<void> {
+function healthUrl(): string | null {
   const base = import.meta.env.VITE_API_BASE_URL;
-  if (!base) return;
-  const healthUrl = new URL("/healthz/", new URL(base, window.location.origin)).toString();
+  if (!base) return null;
+  return new URL("/healthz/", new URL(base, window.location.origin)).toString();
+}
+
+/** One health probe: true if the backend answered within `timeoutMs`. */
+export async function isBackendReachable(timeoutMs = 8_000): Promise<boolean> {
+  const url = healthUrl();
+  if (!url) return true;
+  try {
+    await axios.get(url, { timeout: timeoutMs });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function wakeBackend(maxWaitMs = 150_000): Promise<void> {
+  const url = healthUrl();
+  if (!url) return;
   const deadline = Date.now() + maxWaitMs;
   while (Date.now() < deadline) {
     try {
-      await axios.get(healthUrl, { timeout: 20_000 });
+      await axios.get(url, { timeout: 20_000 });
       return;
     } catch {
       await new Promise((resolve) => setTimeout(resolve, 3_000));

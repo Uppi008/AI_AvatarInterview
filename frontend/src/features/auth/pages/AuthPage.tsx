@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
+import { useAuth } from "@/hooks/useAuth";
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { cn } from "@/utils/cn";
 
@@ -13,7 +14,12 @@ export function AuthPage() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const mode: "login" | "register" = pathname === "/register" ? "register" : "login";
+
+  // A signed-in user can land here if the startup session check finished
+  // late (slow backend); send them on to the app.
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
 
   return (
     <AuthLayout>

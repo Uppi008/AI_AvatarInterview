@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
+import { motion, useReducedMotion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Bot, LayoutDashboard, LogOut, Menu, Mic, Settings, User, X } from "lucide-react";
 
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { toggleSidebar } from "@/features/ui/uiSlice";
+import { AmbientBackground } from "@/components/fx/AmbientBackground";
 import { Avatar } from "@/components/ui/Avatar";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -18,14 +20,24 @@ const NAV_ITEMS = [
   { to: "/settings", labelKey: "nav.settings", icon: Settings },
 ] as const;
 
-export function DashboardLayout({ children }: { children: ReactNode }) {
+interface DashboardLayoutProps {
+  children: ReactNode;
+  /** Skip the ambient animated background, e.g. during a live interview. */
+  calm?: boolean;
+}
+
+export function DashboardLayout({ children, calm = false }: DashboardLayoutProps) {
+  const reduceMotion = useReducedMotion();
   const { t } = useTranslation();
   const { user, logout } = useAuth();
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
   const dispatch = useAppDispatch();
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+    // `isolate` makes this a stacking context, so the -z-10 ambient layer
+    // paints above this div's own background but below all content.
+    <div className="relative isolate flex min-h-screen bg-slate-50 dark:bg-slate-950">
+      {!calm && <AmbientBackground />}
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -36,7 +48,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 transform flex-col border-r border-slate-200 bg-white transition-transform dark:border-slate-800 dark:bg-slate-900 lg:static lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 transform flex-col border-r border-white/60 bg-white/75 shadow-[8px_0_32px_-16px_rgba(15,23,42,0.12)] backdrop-blur-xl transition-transform dark:border-white/[0.06] dark:bg-slate-900/75 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -112,7 +124,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/80 lg:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/60 bg-white/60 px-4 backdrop-blur-xl dark:border-white/[0.06] dark:bg-slate-950/60 lg:px-6">
           <button
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 lg:hidden"
             onClick={() => dispatch(toggleSidebar())}
@@ -125,7 +137,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             <ThemeToggle />
           </div>
         </header>
-        <main className="flex-1 p-4 lg:p-8">{children}</main>
+        <main className="flex-1 p-4 [perspective:1600px] lg:p-8">
+          {/* Each page mounts its own layout, so this plays on every navigation. */}
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 16, rotateX: 4 }}
+            animate={{ opacity: 1, y: 0, rotateX: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="origin-top"
+          >
+            {children}
+          </motion.div>
+        </main>
       </div>
     </div>
   );

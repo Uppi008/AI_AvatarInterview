@@ -26,7 +26,7 @@ export function AvatarCard({ avatar, selected, onSelect }: AvatarCardProps) {
         "group relative flex flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:bg-slate-900",
         selected
           ? "border-brand-500 ring-4 ring-brand-500/20 dark:border-brand-400"
-          : "border-slate-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg dark:border-slate-800 dark:hover:border-slate-700"
+          : "border-slate-200 hover:border-slate-300 hover:shadow-[0_28px_50px_-20px_rgba(49,46,129,0.45)] dark:border-slate-800 dark:hover:border-slate-700"
       )}
     >
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">

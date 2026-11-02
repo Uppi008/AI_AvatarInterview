@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import {
   CalendarDays,
   CheckCircle2,
@@ -16,6 +15,7 @@ import {
   Trophy,
 } from "lucide-react";
 
+import { PageHero } from "@/components/fx/PageHero";
 import { Alert } from "@/components/ui/Alert";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -102,26 +102,17 @@ export function InterviewsPage() {
     <DashboardLayout>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         {/* Hero */}
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 via-indigo-600 to-indigo-800 p-6 text-white shadow-lg shadow-brand-900/20 sm:p-8"
-        >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.14)_1px,transparent_0)] bg-[size:22px_22px]" />
-          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-          <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-medium text-brand-100">{t("nav.interviews")}</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Your interview history</h1>
-              <p className="mt-2 text-brand-100">Review every session, its answers, and your scorecards.</p>
-            </div>
-            <Button variant="secondary" className="shrink-0 self-start md:self-auto" onClick={() => navigate("/avatars")}>
+        <PageHero
+          eyebrow={t("nav.interviews")}
+          title="Your interview history"
+          subtitle="Review every session, its answers, and your scorecards."
+          aside={
+            <Button variant="secondary" onClick={() => navigate("/avatars")}>
               <Sparkles className="h-4 w-4" />
               {t("dashboard.startInterview")}
             </Button>
-          </div>
-        </motion.div>
+          }
+        />
 
         {error && <Alert tone="error">{error}</Alert>}
 

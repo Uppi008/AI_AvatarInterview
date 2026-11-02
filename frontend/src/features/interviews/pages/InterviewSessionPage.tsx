@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
 import {
   ArrowLeft,
   CalendarDays,
@@ -17,6 +16,7 @@ import {
   Video,
 } from "lucide-react";
 
+import { PageHero } from "@/components/fx/PageHero";
 import { Alert } from "@/components/ui/Alert";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -245,60 +245,57 @@ export function InterviewSessionPage() {
         </Link>
 
         {/* Hero */}
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 via-indigo-600 to-indigo-800 p-6 text-white shadow-lg shadow-brand-900/20 sm:p-8"
-        >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.14)_1px,transparent_0)] bg-[size:22px_22px]" />
-          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-          <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center">
+        <PageHero
+          leading={
             <Avatar src={session.avatar_image} name={session.avatar_name} className="h-16 w-16 text-2xl ring-4 ring-white/25" />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-2xl font-bold tracking-tight">Interview with {session.avatar_name}</h1>
-                <Badge tone={STATUS_TONE[session.status]} dot>
-                  {session.status.replace("_", " ")}
-                </Badge>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-brand-100">
-                {date && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <CalendarDays className="h-4 w-4" />
-                    {new Date(date).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
-                  </span>
-                )}
-                {duration && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock3 className="h-4 w-4" />
-                    {duration}
-                  </span>
-                )}
+          }
+          title={
+            <span className="inline-flex flex-wrap items-center gap-2">
+              Interview with {session.avatar_name}
+              <Badge tone={STATUS_TONE[session.status]} dot>
+                {session.status.replace("_", " ")}
+              </Badge>
+            </span>
+          }
+          subtitle={
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              {date && (
                 <span className="inline-flex items-center gap-1.5">
-                  <Languages className="h-4 w-4" />
-                  {LANGUAGE_LABEL[session.language] ?? session.language}
+                  <CalendarDays className="h-4 w-4" />
+                  {new Date(date).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
                 </span>
+              )}
+              {duration && (
                 <span className="inline-flex items-center gap-1.5">
-                  <ListChecks className="h-4 w-4" />
-                  {answeredCount}/{session.questions.length} answered
+                  <Clock3 className="h-4 w-4" />
+                  {duration}
                 </span>
-                {session.violation_count > 0 && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <ShieldAlert className="h-4 w-4" />
-                    {session.violation_count} proctoring alert{session.violation_count === 1 ? "" : "s"}
-                  </span>
-                )}
-              </div>
+              )}
+              <span className="inline-flex items-center gap-1.5">
+                <Languages className="h-4 w-4" />
+                {LANGUAGE_LABEL[session.language] ?? session.language}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <ListChecks className="h-4 w-4" />
+                {answeredCount}/{session.questions.length} answered
+              </span>
+              {session.violation_count > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <ShieldAlert className="h-4 w-4" />
+                  {session.violation_count} proctoring alert{session.violation_count === 1 ? "" : "s"}
+                </span>
+              )}
             </div>
-            {reportScore !== null && (
-              <div className="flex shrink-0 flex-col items-center rounded-2xl bg-white/15 px-5 py-3 ring-1 ring-inset ring-white/25 backdrop-blur-sm">
+          }
+          aside={
+            reportScore !== null && (
+              <div className="flex flex-col items-center rounded-2xl bg-white/15 px-5 py-3 ring-1 ring-inset ring-white/25 backdrop-blur-sm">
                 <span className="text-3xl font-bold leading-none">{reportScore}</span>
                 <span className="mt-1 text-[11px] font-medium uppercase tracking-wide text-brand-100">Overall</span>
               </div>
-            )}
-          </div>
-        </motion.div>
+            )
+          }
+        />
 
         {session.termination_reason && (
           <Alert tone="error">

@@ -18,6 +18,8 @@ import {
   X,
 } from "lucide-react";
 
+import { PageHero } from "@/components/fx/PageHero";
+import { Tilt3D } from "@/components/fx/Tilt3D";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -190,40 +192,29 @@ export function AvatarSelectionPage() {
     <DashboardLayout>
       <div className={cn("mx-auto flex w-full max-w-7xl flex-col gap-6", selected && "pb-28")}>
         {/* Hero */}
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 via-indigo-600 to-indigo-800 p-6 text-white shadow-lg shadow-brand-900/20 sm:p-8"
-        >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.14)_1px,transparent_0)] bg-[size:22px_22px]" />
-          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-          <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-sm font-medium text-brand-100">New interview</p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{t("avatars.title")}</h1>
-              <p className="mt-2 text-brand-100">
-                Pick who interviews you, set the language and style, then start when you're ready.
-              </p>
-            </div>
-            {activeResume !== undefined &&
-              (resumeReady ? (
-                <span className="inline-flex max-w-full items-center gap-2 self-start rounded-full bg-white/15 px-3.5 py-1.5 text-sm font-medium ring-1 ring-inset ring-white/25 backdrop-blur-sm md:self-auto">
-                  <FileText className="h-4 w-4 shrink-0" />
-                  <span className="truncate">Questions tailored to {activeResume!.original_filename}</span>
-                </span>
-              ) : (
-                <Link
-                  to="/resume"
-                  className="inline-flex items-center gap-2 self-start rounded-full bg-amber-400/20 px-3.5 py-1.5 text-sm font-medium text-amber-50 ring-1 ring-inset ring-amber-300/40 backdrop-blur-sm transition-colors hover:bg-amber-400/30 md:self-auto"
-                >
-                  <FileWarning className="h-4 w-4 shrink-0" />
-                  {activeResume ? "Resume still processing" : "No resume — questions will be general"}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              ))}
-          </div>
-        </motion.div>
+        <PageHero
+          eyebrow="New interview"
+          title={t("avatars.title")}
+          subtitle="Pick who interviews you, set the language and style, then start when you're ready."
+          aside={
+            activeResume !== undefined &&
+            (resumeReady ? (
+              <span className="inline-flex max-w-full items-center gap-2 rounded-full bg-white/15 px-3.5 py-1.5 text-sm font-medium ring-1 ring-inset ring-white/25 backdrop-blur-sm">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="truncate">Questions tailored to {activeResume!.original_filename}</span>
+              </span>
+            ) : (
+              <Link
+                to="/resume"
+                className="inline-flex items-center gap-2 rounded-full bg-amber-400/20 px-3.5 py-1.5 text-sm font-medium text-amber-50 ring-1 ring-inset ring-amber-300/40 backdrop-blur-sm transition-colors hover:bg-amber-400/30"
+              >
+                <FileWarning className="h-4 w-4 shrink-0" />
+                {activeResume ? "Resume still processing" : "No resume — questions will be general"}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            ))
+          }
+        />
 
         {/* Setup */}
         <Card className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_1fr]">
@@ -334,11 +325,13 @@ export function AvatarSelectionPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: Math.min(i, 10) * 0.03 }}
               >
-                <AvatarCard
-                  avatar={avatar}
-                  selected={selected?.id === avatar.id}
-                  onSelect={(a) => setSelected((cur) => (cur?.id === a.id ? null : a))}
-                />
+                <Tilt3D max={12}>
+                  <AvatarCard
+                    avatar={avatar}
+                    selected={selected?.id === avatar.id}
+                    onSelect={(a) => setSelected((cur) => (cur?.id === a.id ? null : a))}
+                  />
+                </Tilt3D>
               </motion.div>
             ))}
           </div>

@@ -19,6 +19,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
+import { PageHero } from "@/components/fx/PageHero";
 import { Alert } from "@/components/ui/Alert";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -218,72 +219,65 @@ export function SettingsPage() {
     <DashboardLayout>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         {/* Profile hero */}
-        <motion.div
-          {...fadeUp()}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 via-indigo-600 to-indigo-800 p-6 text-white shadow-lg shadow-brand-900/20 sm:p-8"
+        <PageHero
+          eyebrow={t("nav.settings")}
+          title={user?.full_name || " "}
+          leading={
+            <>
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                aria-label="Change photo"
+                className="group relative h-24 w-24 shrink-0 rounded-full ring-4 ring-white/25 transition hover:ring-white/50"
+              >
+                <Avatar src={profile?.profile_photo} name={user?.full_name} className="h-full w-full text-3xl" />
+                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-white opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
+                  <Camera className="h-6 w-6" />
+                </span>
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-brand-700 shadow-md">
+                  {photoUploading ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                </span>
+              </button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void onPhotoSelected(file);
+                  e.target.value = "";
+                }}
+              />
+            </>
+          }
         >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.14)_1px,transparent_0)] bg-[size:22px_22px]" />
-          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 left-1/4 h-52 w-52 rounded-full bg-brand-400/20 blur-3xl" />
-
-          <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              onClick={() => photoInputRef.current?.click()}
-              aria-label="Change photo"
-              className="group relative h-24 w-24 shrink-0 rounded-full ring-4 ring-white/25 transition hover:ring-white/50"
-            >
-              <Avatar src={profile?.profile_photo} name={user?.full_name} className="h-full w-full text-3xl" />
-              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-white opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
-                <Camera className="h-6 w-6" />
+          <div className="flex flex-wrap items-center gap-2">
+            {user?.email && (
+              <span className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-inset ring-white/25 backdrop-blur-sm">
+                <Mail className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{user.email}</span>
               </span>
-              <span className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-brand-700 shadow-md">
-                {photoUploading ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                ) : (
-                  <Camera className="h-4 w-4" />
+            )}
+            {user && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset backdrop-blur-sm",
+                  user.is_email_verified
+                    ? "bg-emerald-400/20 text-emerald-50 ring-emerald-300/40"
+                    : "bg-amber-400/20 text-amber-50 ring-amber-300/40"
                 )}
+              >
+                <BadgeCheck className="h-3.5 w-3.5" />
+                {user.is_email_verified ? "Verified" : "Email not verified"}
               </span>
-            </button>
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void onPhotoSelected(file);
-                e.target.value = "";
-              }}
-            />
-
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-brand-100">{t("nav.settings")}</p>
-              <h1 className="mt-1 truncate text-2xl font-bold sm:text-3xl">{user?.full_name || " "}</h1>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {user?.email && (
-                  <span className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-white/15 px-3 py-1 text-xs font-medium ring-1 ring-inset ring-white/25 backdrop-blur-sm">
-                    <Mail className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{user.email}</span>
-                  </span>
-                )}
-                {user && (
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset backdrop-blur-sm",
-                      user.is_email_verified
-                        ? "bg-emerald-400/20 text-emerald-50 ring-emerald-300/40"
-                        : "bg-amber-400/20 text-amber-50 ring-amber-300/40"
-                    )}
-                  >
-                    <BadgeCheck className="h-3.5 w-3.5" />
-                    {user.is_email_verified ? "Verified" : "Email not verified"}
-                  </span>
-                )}
-              </div>
-            </div>
+            )}
           </div>
-        </motion.div>
+        </PageHero>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
           {/* Profile form */}

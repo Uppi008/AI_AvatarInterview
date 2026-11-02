@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowUpRight, type LucideIcon } from "lucide-react";
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 
+import { Tilt3D } from "@/components/fx/Tilt3D";
 import { Card } from "@/components/ui/Card";
 import { toneGradientBg } from "@/styles/tone";
 import { cn } from "@/utils/cn";
@@ -79,11 +80,17 @@ export function StatCard({ label, value, icon: Icon, tone = "brand", hint, to }:
     </Card>
   );
 
+  const tilted = (
+    <Tilt3D className="h-full" max={10}>
+      {card}
+    </Tilt3D>
+  );
+
   return to ? (
     <Link to={to} className="block h-full rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600">
-      {card}
+      {tilted}
     </Link>
   ) : (
-    card
+    tilted
   );
 }

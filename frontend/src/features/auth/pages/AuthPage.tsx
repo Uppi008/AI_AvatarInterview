@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { cn } from "@/utils/cn";
@@ -20,8 +21,13 @@ export function AuthPage() {
         <HeroSection />
 
         <div className="flex items-center justify-center px-6 py-12">
-          <div className="w-full max-w-sm">
-            <div className="mb-8 flex rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full max-w-md rounded-3xl border border-white/70 bg-white/75 p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_30px_70px_-30px_rgba(49,46,129,0.35)] backdrop-blur-2xl dark:border-white/[0.07] dark:bg-slate-900/70 dark:shadow-[0_30px_70px_-30px_rgba(0,0,0,0.8)] sm:p-10"
+          >
+            <div className="mb-8 flex rounded-xl bg-slate-100/80 p-1 dark:bg-slate-800/70">
               <button
                 type="button"
                 onClick={() => navigate("/login")}
@@ -74,7 +80,7 @@ export function AuthPage() {
                 </>
               )}
             </p>
-          </div>
+          </motion.div>
         </div>
       </div>
     </AuthLayout>

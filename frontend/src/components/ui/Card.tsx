@@ -10,9 +10,12 @@ export function Card({ className, interactive, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900",
+        // Frosted glass over the ambient background, with a top highlight and
+        // a soft layered drop shadow for depth.
+        "rounded-2xl border border-white/70 bg-white/80 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-14px_rgba(15,23,42,0.18)] backdrop-blur-xl",
+        "dark:border-white/[0.07] dark:bg-slate-900/70 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_12px_32px_-14px_rgba(0,0,0,0.7)]",
         interactive &&
-          "transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:hover:border-slate-700",
+          "transition-all duration-300 hover:-translate-y-1 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_24px_48px_-18px_rgba(79,70,229,0.35)] dark:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_24px_48px_-18px_rgba(79,70,229,0.45)]",
         className
       )}
       {...props}

@@ -127,7 +127,7 @@ export function LiveInterviewPage() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout calm>
       <div className="flex flex-col gap-5">
         {socket.status === "connecting" && (
           <div className="flex h-64 items-center justify-center">

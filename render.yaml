@@ -35,12 +35,10 @@ envVarGroups:
       - key: DEFAULT_FROM_EMAIL
         sync: false
 
-databases:
-  - name: ai-avatarinterview-db
-    plan: free
-    region: oregon
-    databaseName: ai_avatarinterview
-    user: ai_avatar_user
+# No Render-managed database: Render's free Postgres expires after 30 days
+# (and is deleted 14 days later), which took the whole app down once. The
+# database lives on Neon's free tier instead (no expiry); paste its
+# connection string into DATABASE_URL below. See docs/DEPLOY_VERCEL_RENDER.md.
 
 services:
   - type: keyvalue
@@ -87,10 +85,10 @@ services:
         value: localhost,127.0.0.1
       - key: DJANGO_SECURE_SSL_REDIRECT
         value: "True"
+      # Neon connection string, e.g.
+      # postgresql://user:pass@ep-xxxx.us-west-2.aws.neon.tech/neondb?sslmode=require
       - key: DATABASE_URL
-        fromDatabase:
-          name: ai-avatarinterview-db
-          property: connectionString
+        sync: false
       - key: REDIS_URL
         fromService:
           type: keyvalue

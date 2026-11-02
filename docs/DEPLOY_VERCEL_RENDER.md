@@ -13,15 +13,17 @@ side has deployed once.
 ## 1. Backend on Render
 
 1. Push this branch (it needs `render.yaml` and `backend/config/settings/render.py`, both already in the repo).
-2. Render dashboard → **New** → **Blueprint** → connect this GitHub repo → Render reads `render.yaml` and proposes: a Postgres database, a Key Value (Redis) instance, a web service, and a worker service.
-3. On the review screen, fill in the `sync: false` variables:
+2. Create the database on **[Neon](https://neon.tech)** (free tier, no expiry): new project in **AWS US West 2 (Oregon)** to sit next to Render's `oregon` region, then **Connect** → copy the connection string. Don't use Render's free Postgres — it expires 30 days after creation and is deleted 14 days later, which is exactly how this deployment went down on 2026-11-01.
+3. Render dashboard → **New** → **Blueprint** → connect this GitHub repo → Render reads `render.yaml` and proposes: a Key Value (Redis) instance and a web service.
+4. On the review screen, fill in the `sync: false` variables:
+   - `DATABASE_URL` — the Neon connection string from step 2.
    - `GROQ_API_KEY` — from [console.groq.com](https://console.groq.com). Without it, resume analysis and AI scoring fail cleanly but nothing AI-related works.
    - `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` — real SMTP credentials (e.g. a Gmail app-specific password).
    - `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, `FRONTEND_BASE_URL` — leave as `http://localhost:5173` for now; you'll update these in step 3 once the Vercel URL exists.
    - `DJANGO_SECRET_KEY` / `JWT_SIGNING_KEY` are generated automatically (shared between the web and worker service via `envVarGroups`) — don't fill these in.
-4. **Apply**. Render builds `backend/Dockerfile`, runs `migrate` → `collectstatic` → starts `daphne` for the web service, and `celery -A config worker` for the worker.
-5. Once the web service is live, note its URL: `https://ai-avatarinterview-backend.onrender.com` (exact subdomain depends on availability). Check `https://<that-url>/healthz/` returns `{"status": "ok"}`.
-6. Create an admin user via Render's dashboard shell for the web service:
+5. **Apply**. Render builds `backend/Dockerfile`, runs `migrate` → `collectstatic` → starts `daphne` for the web service, and `celery -A config worker` for the worker.
+6. Once the web service is live, note its URL: `https://ai-avatarinterview-backend.onrender.com` (exact subdomain depends on availability). Check `https://<that-url>/healthz/` returns `{"status": "ok"}`.
+7. Create an admin user via Render's dashboard shell for the web service:
    ```bash
    python manage.py createsuperuser
    ```

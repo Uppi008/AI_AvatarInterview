@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Clock, ListChecks, ShieldAlert } from "lucide-react";
+import { Clock, ListChecks, ShieldAlert, Volume2 } from "lucide-react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
@@ -25,7 +25,7 @@ export function LiveInterviewPage() {
   const { id } = useParams<{ id: string }>();
   const sessionId = id ?? "";
   const socket = useInterviewSocket(sessionId);
-  const { isPlaying, enqueue, audioElement } = useAudioPlayback();
+  const { isPlaying, needsUnlock, enqueue, unlock, audioElement } = useAudioPlayback();
   const { isRecording, start: startRecording, stop: stopRecording } = useAudioRecorder();
 
   const [avatar, setAvatar] = useState<{ name: string; image: string } | null>(null);
@@ -56,6 +56,15 @@ export function LiveInterviewPage() {
     const timer = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Mobile browsers only allow sound that starts from a user gesture, and the
+  // interviewer's clips arrive over the socket with no gesture attached. The
+  // first tap/key anywhere on the page unlocks audio for the whole session.
+  useEffect(() => {
+    const events = ["click", "touchend", "keydown"] as const;
+    events.forEach((e) => document.addEventListener(e, unlock, { capture: true }));
+    return () => events.forEach((e) => document.removeEventListener(e, unlock, { capture: true }));
+  }, [unlock]);
 
   useEffect(() => {
     if (socket.question && socket.question.id !== lastPlayedQuestionId.current) {
@@ -165,6 +174,17 @@ export function LiveInterviewPage() {
               violationCount={socket.violationCount}
               maxViolations={4}
             />
+
+            {needsUnlock && (
+              <button
+                type="button"
+                onClick={unlock}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-600 px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-700 active:scale-[0.99]"
+              >
+                <Volume2 className="h-5 w-5 animate-pulse" />
+                Tap to hear the interviewer
+              </button>
+            )}
 
             <AvatarStage
               avatarImage={avatar?.image ?? ""}

@@ -113,6 +113,10 @@ All student-only; you only ever see your own rows. Creating runs the LLM (Groq, 
 |---|---|---|
 | GET/POST/DELETE | `/career/job-matches/` (`/{id}/`) | POST `{job_description (80-8000 chars), job_title?, company?, resume?}` → `match_score`, `verdict`, `matched_skills`, `missing_skills`, `strengths`, `resume_tips`, `likely_questions[{question, why_asked}]`. Uses your latest parsed resume when `resume` is omitted. |
 | GET/POST/DELETE | `/career/answer-practices/` (`/{id}/`) | POST `{question, answer, target_role?}` → overall/clarity/relevance/impact scores, `star` breakdown, `strengths`, `improvements`, `improved_answer`, plus `delivery` (word count, spoken time, filler words; computed without the LLM). |
+| POST | `/career/job-matches/{id}/cover-letter/` | Writes (or rewrites) `cover_letter_subject` + `cover_letter` for that job from your resume; returns the updated job match. |
+| GET/POST/DELETE | `/career/quizzes/` (`/{id}/`) | POST `{topic, difficulty (easy/medium/hard), count (3-15, default 10)}` → multiple-choice questions. `correct_index`/`explanation` are **hidden** until submitted. |
+| POST | `/career/quizzes/{id}/submit/` | `{answers: [optionIndex \| null, ...]}` (one per question) → scored server-side; reveals answers and explanations. 400 if already submitted or wrong length. |
+| GET/POST/DELETE | `/career/code-reviews/` (`/{id}/`) | POST `{problem, code, code_language (Python/JavaScript/TypeScript/Java/C++/C/C#/Go/SQL)}` → correctness/readability/efficiency scores, time & space complexity of the submitted code, bugs, improvements, `improved_code`, `follow_up_question`. |
 | GET/POST/PATCH/DELETE | `/career/study-plans/` (`/{id}/`) | POST `{target_role?, days (3-14, default 7)}` → day-by-day plan built from your last 5 report weaknesses + resume insight. PATCH `{completed_tasks: ["1-0", ...]}` (`"day-taskIndex"`) to track progress. |
 
 ### Admin — `apps.admin_panel` (`/admin/`)

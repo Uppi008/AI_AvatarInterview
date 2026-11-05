@@ -14,6 +14,7 @@ LLM is only used for what it can legitimately do: synthesizing strengths/
 weaknesses/tips from the transcript.
 """
 import logging
+import random
 
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -21,9 +22,12 @@ from .llm_client import get_chat_model
 from .schemas import (
     AnswerCoachResult,
     AnswerEvaluationResult,
+    CodeReviewResult,
+    CoverLetterResult,
     JobMatchResult,
     ModerationResult,
     QuestionBankResult,
+    QuizResult,
     ReportSummaryResult,
     ResumeExtractionResult,
     StudyPlanResult,
@@ -618,3 +622,102 @@ def build_study_plan(
     )
     result.days = result.days[:days]
     return result
+
+
+def generate_quiz(*, topic: str, difficulty: str, count: int, language: str = "en") -> QuizResult:
+    """Multiple-choice questions for self-testing on an interview topic."""
+    model = get_chat_model("career_coach", temperature=0.6).with_structured_output(QuizResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are a technical interviewer writing a {difficulty} multiple-choice quiz. Write "
+                "exactly {count} questions on the topic below, the kind asked in real job interviews. "
+                "Each has exactly 4 plausible options with one unambiguously correct answer; vary "
+                "which position is correct. Keep questions and options short; put any code inline. "
+                "Respond entirely in {language}.",
+            ),
+            ("human", "Topic: {topic}"),
+        ]
+    )
+    result: QuizResult = _invoke_structured(
+        prompt | model,
+        {"topic": topic[:200], "difficulty": difficulty, "count": count, "language": _language_name(language)},
+    )
+    # Drop anything malformed rather than show a broken question.
+    result.questions = [
+        q for q in result.questions if len(q.options) == 4 and 0 <= q.correct_index <= 3
+    ][:count]
+    if not result.questions:
+        raise RuntimeError("The model returned no usable quiz questions.")
+    # The model puts the right answer first most of the time, which makes the
+    # quiz guessable; shuffle each question's options and follow the answer.
+    for q in result.questions:
+        correct = q.options[q.correct_index]
+        random.shuffle(q.options)
+        q.correct_index = q.options.index(correct)
+    return result
+
+
+def review_code(*, problem: str, code: str, language: str, explain_in: str = "en") -> CodeReviewResult:
+    """Reviews a coding-round answer like an interviewer: correctness first,
+    then complexity, readability and a corrected version."""
+    model = get_chat_model("career_coach", temperature=0.2).with_structured_output(CodeReviewResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are a senior engineer reviewing a candidate's solution in a coding interview. "
+                "Mentally run the code on normal and edge-case inputs before judging. Score "
+                "correctness strictly (code that doesn't solve the problem scores below 40). First "
+                "trace their code in `analysis`, then give time/space complexity of THEIR code exactly "
+                "as written (nested loops over the input are O(n^2) even if a faster approach "
+                "exists) -- never the complexity of your improved version. improved_code must be "
+                "complete, correct {language} code. Write all prose in {explain_in}.",
+            ),
+            ("human", "Problem:\n{problem}\n\nCandidate's {language} code:\n```\n{code}\n```"),
+        ]
+    )
+    return _invoke_structured(
+        prompt | model,
+        {
+            "problem": problem[:3000],
+            "code": code[:8000],
+            "language": language,
+            "explain_in": _language_name(explain_in),
+        },
+    )
+
+
+def write_cover_letter(
+    *, resume_text: str, job_title: str, company: str, job_description: str, candidate_name: str, language: str = "en"
+) -> CoverLetterResult:
+    model = get_chat_model("career_coach", temperature=0.5).with_structured_output(CoverLetterResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "Write a concise, specific cover letter for this candidate and job. Use only "
+                "achievements and skills that appear in the resume -- never invent employers, "
+                "numbers or experience. Connect 2-3 real resume points to the job's top "
+                "requirements, sound human (no cliches like 'I am writing to express my "
+                "interest'), and sign off with the candidate's name. Respond entirely in {language}.",
+            ),
+            (
+                "human",
+                "Candidate: {name}\nJob: {job_title} at {company}\n\nJob description:\n{job_description}"
+                "\n\nResume:\n{resume_text}",
+            ),
+        ]
+    )
+    return _invoke_structured(
+        prompt | model,
+        {
+            "name": candidate_name or "the candidate",
+            "job_title": job_title or "the role",
+            "company": company or "your company",
+            "job_description": job_description[:6000],
+            "resume_text": resume_text[:8000] or "(no resume available -- keep it general and honest)",
+            "language": _language_name(language),
+        },
+    )

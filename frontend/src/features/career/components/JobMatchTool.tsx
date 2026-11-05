@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, FileSearch, Lightbulb, MessageSquareText, Sparkles, XCircle } from "lucide-react";
+import { Check, CheckCircle2, Copy, FileSearch, Lightbulb, Mail, MessageSquareText, RefreshCw, Sparkles, XCircle } from "lucide-react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -99,7 +99,17 @@ export function JobMatchTool({ onPractice }: { onPractice: (question: string) =>
           </Card>
         )}
 
-        {selected && <JobMatchResult match={selected} onBack={() => setSelected(null)} onPractice={onPractice} />}
+        {selected && (
+          <JobMatchResult
+            match={selected}
+            onBack={() => setSelected(null)}
+            onPractice={onPractice}
+            onUpdate={(m) => {
+              setSelected(m);
+              setHistory((h) => h.map((x) => (x.id === m.id ? m : x)));
+            }}
+          />
+        )}
       </div>
 
       <Card className="h-fit p-4">
@@ -130,10 +140,12 @@ function JobMatchResult({
   match,
   onBack,
   onPractice,
+  onUpdate,
 }: {
   match: JobMatch;
   onBack: () => void;
   onPractice: (question: string) => void;
+  onUpdate: (match: JobMatch) => void;
 }) {
   const score = Number(match.match_score);
   return (
@@ -203,7 +215,88 @@ function JobMatchResult({
           ))}
         </div>
       </Card>
+
+      <CoverLetterCard match={match} onUpdate={onUpdate} />
     </motion.div>
+  );
+}
+
+function CoverLetterCard({ match, onUpdate }: { match: JobMatch; onUpdate: (match: JobMatch) => void }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const write = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await careerApi.writeCoverLetter(match.id);
+      onUpdate(data);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Couldn't write the cover letter. Please try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(`Subject: ${match.cover_letter_subject}
+
+${match.cover_letter}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard blocked -- nothing to do.
+    }
+  };
+
+  return (
+    <Card className="border-brand-200 dark:border-brand-800">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+          <Mail className="h-4 w-4 text-brand-500" /> Cover letter
+        </h3>
+        {match.cover_letter && !loading && (
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={() => void copy()}>
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => void write()}>
+              <RefreshCw className="h-4 w-4" /> Rewrite
+            </Button>
+          </div>
+        )}
+      </div>
+      {loading ? (
+        <ThinkingState steps={["Reading your resume", "Matching it to the job", "Writing your letter"]} />
+      ) : match.cover_letter ? (
+        <>
+          <p className="mb-3 text-sm">
+            <span className="font-medium text-slate-500 dark:text-slate-400">Subject: </span>
+            <span className="font-semibold text-slate-900 dark:text-white">{match.cover_letter_subject}</span>
+          </p>
+          <p className="whitespace-pre-line rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+            {match.cover_letter}
+          </p>
+          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Read it through and adjust anything before sending.</p>
+        </>
+      ) : (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <p className="min-w-0 flex-1 text-sm text-slate-500 dark:text-slate-400">
+            Get a cover letter for this job, written from the real experience in your resume.
+          </p>
+          <Button size="sm" onClick={() => void write()} className="shrink-0">
+            <Sparkles className="h-4 w-4" /> Write cover letter
+          </Button>
+        </div>
+      )}
+      {error && (
+        <Alert tone="error" className="mt-3">
+          {error}
+        </Alert>
+      )}
+    </Card>
   );
 }
 

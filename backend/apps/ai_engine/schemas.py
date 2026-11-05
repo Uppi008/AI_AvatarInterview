@@ -206,3 +206,42 @@ class StudyPlanResult(BaseModel):
     summary: str = Field(description="Two sentences on what this plan fixes and why")
     focus_areas: list[str] = Field(default_factory=list)
     days: list[StudyDay] = Field(default_factory=list)
+
+
+# --- Career Lab: skill quiz ---
+class QuizQuestion(BaseModel):
+    question: str
+    options: list[str] = Field(description="Exactly 4 answer options, plain text, no 'A)' prefixes")
+    correct_index: int = Field(ge=0, le=3, description="0-based index of the correct option")
+    explanation: str = Field(description="One or two sentences on why the answer is correct")
+
+
+class QuizResult(BaseModel):
+    questions: list[QuizQuestion] = Field(default_factory=list)
+
+
+# --- Career Lab: code review ---
+class CodeReviewResult(BaseModel):
+    # Asked for first so the model traces the SUBMITTED code before rating it;
+    # without it, it reported the complexity of its own improved version.
+    analysis: str = Field(
+        description="2-3 sentences tracing how the SUBMITTED code runs: its loops/recursion and what each does"
+    )
+    correctness_score: float = Field(ge=0, le=100, description="Does it solve the stated problem, incl. edge cases")
+    readability_score: float = Field(ge=0, le=100)
+    efficiency_score: float = Field(ge=0, le=100)
+    time_complexity: str = Field(
+        description="Big-O time of the SUBMITTED code as written (not the improved version), e.g. 'O(n^2)'"
+    )
+    space_complexity: str = Field(description="Big-O extra space of the SUBMITTED code as written")
+    verdict: str = Field(description="One sentence overall verdict, as an interviewer would say it")
+    bugs: list[str] = Field(default_factory=list, description="Concrete bugs or failing edge cases; empty if none")
+    improvements: list[str] = Field(default_factory=list, description="2-4 specific improvements")
+    improved_code: str = Field(description="A corrected, idiomatic version in the same language")
+    follow_up_question: str = Field(default="", description="A follow-up an interviewer would ask next")
+
+
+# --- Career Lab: cover letter ---
+class CoverLetterResult(BaseModel):
+    subject: str = Field(description="Email subject line for the application")
+    letter: str = Field(description="The cover letter body, 180-260 words, plain paragraphs")

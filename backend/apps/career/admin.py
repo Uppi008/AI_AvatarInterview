@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AnswerPractice, JobMatch, StudyPlan
+from .models import AnswerPractice, CodeReview, JobMatch, Quiz, StudyPlan
 
 
 @admin.register(JobMatch)
@@ -19,3 +19,15 @@ class AnswerPracticeAdmin(admin.ModelAdmin):
 class StudyPlanAdmin(admin.ModelAdmin):
     list_display = ["student", "target_role", "created_at"]
     search_fields = ["student__user__email", "target_role"]
+
+
+@admin.register(Quiz)
+class QuizAdmin(admin.ModelAdmin):
+    list_display = ["student", "topic", "difficulty", "score", "created_at"]
+    search_fields = ["student__user__email", "topic"]
+
+
+@admin.register(CodeReview)
+class CodeReviewAdmin(admin.ModelAdmin):
+    list_display = ["student", "code_language", "correctness_score", "created_at"]
+    search_fields = ["student__user__email", "problem"]

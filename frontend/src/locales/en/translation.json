@@ -109,9 +109,11 @@
   },
   "career": {
     "heroTitle": "Prepare smarter between interviews",
-    "heroSubtitle": "Match your resume to real jobs, get coached on every answer, and follow a study plan built from your own weak spots.",
+    "heroSubtitle": "Match your resume to real jobs, get coached on every answer, quiz yourself, review your code, and follow a study plan built from your own weak spots.",
     "tabJobMatch": "Job Match",
     "tabCoach": "Answer Coach",
-    "tabPlan": "Study Plan"
+    "tabPlan": "Study Plan",
+    "tabQuiz": "Skill Quiz",
+    "tabCode": "Code Review"
   }
 }

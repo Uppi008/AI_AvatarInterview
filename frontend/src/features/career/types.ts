@@ -19,6 +19,8 @@ export interface JobMatch {
   strengths: string[];
   resume_tips: string[];
   likely_questions: LikelyQuestion[];
+  cover_letter_subject: string;
+  cover_letter: string;
   created_at: string;
 }
 
@@ -75,5 +77,48 @@ export interface StudyPlan {
   completed_tasks: string[];
   total_tasks: number;
   sources: { reports: number; resume: boolean };
+  created_at: string;
+}
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  /** Only present once the quiz is submitted. */
+  correct_index?: number;
+  explanation?: string;
+}
+
+export interface Quiz {
+  id: string;
+  topic: string;
+  difficulty: "easy" | "medium" | "hard";
+  language: Language;
+  questions: QuizQuestion[];
+  answers: (number | null)[];
+  score: string | null;
+  submitted_at: string | null;
+  created_at: string;
+}
+
+export const CODE_LANGUAGES = ["Python", "JavaScript", "TypeScript", "Java", "C++", "C", "C#", "Go", "SQL"] as const;
+export type CodeLanguage = (typeof CODE_LANGUAGES)[number];
+
+export interface CodeReview {
+  id: string;
+  problem: string;
+  code: string;
+  code_language: CodeLanguage;
+  language: Language;
+  analysis: string;
+  correctness_score: string;
+  readability_score: string;
+  efficiency_score: string;
+  time_complexity: string;
+  space_complexity: string;
+  verdict: string;
+  bugs: string[];
+  improvements: string[];
+  improved_code: string;
+  follow_up_question: string;
   created_at: string;
 }

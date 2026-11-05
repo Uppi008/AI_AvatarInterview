@@ -3,6 +3,8 @@
 - JobMatch: a resume scored against a pasted job description.
 - AnswerPractice: one practice answer, graded + rewritten by the coach.
 - StudyPlan: a day-by-day prep plan built from the candidate's own weak spots.
+- Quiz: AI-written multiple-choice self-test on any interview topic.
+- CodeReview: a coding-round answer reviewed like an interviewer would.
 
 The LLM output is stored as plain JSON (not normalized tables) because
 these are read back whole and never queried by their inner fields.
@@ -26,6 +28,8 @@ class JobMatch(BaseModel):
     strengths = models.JSONField(default=list)
     resume_tips = models.JSONField(default=list)
     likely_questions = models.JSONField(default=list, help_text="[{question, why_asked}]")
+    cover_letter_subject = models.CharField(max_length=255, blank=True)
+    cover_letter = models.TextField(blank=True)
 
     class Meta:
         db_table = "career_job_matches"
@@ -76,3 +80,48 @@ class StudyPlan(BaseModel):
     @property
     def total_tasks(self) -> int:
         return sum(len(day.get("tasks", [])) for day in self.days)
+
+
+class Quiz(BaseModel):
+    class Difficulty(models.TextChoices):
+        EASY = "easy", "Easy"
+        MEDIUM = "medium", "Medium"
+        HARD = "hard", "Hard"
+
+    student = models.ForeignKey("users.StudentProfile", on_delete=models.CASCADE, related_name="quizzes")
+    topic = models.CharField(max_length=200)
+    difficulty = models.CharField(max_length=10, choices=Difficulty.choices, default=Difficulty.MEDIUM)
+    language = models.CharField(max_length=5, default="en")
+    questions = models.JSONField(default=list, help_text="[{question, options[4], correct_index, explanation}]")
+    answers = models.JSONField(default=list, help_text="Chosen option index per question; null = skipped")
+    score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "career_quizzes"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["student", "-created_at"])]
+
+
+class CodeReview(BaseModel):
+    student = models.ForeignKey("users.StudentProfile", on_delete=models.CASCADE, related_name="code_reviews")
+    problem = models.TextField()
+    code = models.TextField()
+    code_language = models.CharField(max_length=30)
+    language = models.CharField(max_length=5, default="en")
+    analysis = models.TextField(blank=True)
+    correctness_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    readability_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    efficiency_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    time_complexity = models.CharField(max_length=60, blank=True)
+    space_complexity = models.CharField(max_length=60, blank=True)
+    verdict = models.TextField(blank=True)
+    bugs = models.JSONField(default=list)
+    improvements = models.JSONField(default=list)
+    improved_code = models.TextField(blank=True)
+    follow_up_question = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "career_code_reviews"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["student", "-created_at"])]

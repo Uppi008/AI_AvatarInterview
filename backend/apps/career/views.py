@@ -2,6 +2,7 @@ import logging
 
 from django.db import DatabaseError
 from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 
@@ -9,12 +10,17 @@ from common.permissions import IsStudent
 from common.throttling import ScopedThrottleOnCreateMixin
 
 from . import services
-from .models import AnswerPractice, JobMatch, StudyPlan
+from .models import AnswerPractice, CodeReview, JobMatch, Quiz, StudyPlan
 from .serializers import (
     AnswerPracticeCreateSerializer,
     AnswerPracticeSerializer,
+    CodeReviewCreateSerializer,
+    CodeReviewSerializer,
     JobMatchCreateSerializer,
     JobMatchSerializer,
+    QuizCreateSerializer,
+    QuizSerializer,
+    QuizSubmitSerializer,
     StudyPlanCreateSerializer,
     StudyPlanSerializer,
 )
@@ -62,19 +68,23 @@ class _CareerViewSet(
     model = None
     create_serializer_class = None
 
+    # Actions besides `create` that also call the LLM, so share its throttle.
+    ai_actions = ()
+
     def get_queryset(self):
         return self.model.objects.filter(student__user=self.request.user)
+
+    def get_throttles(self):
+        if self.action in self.ai_actions:
+            return [throttle() for throttle in self.throttle_classes]
+        return super().get_throttles()
 
     def run(self, student, data):
         raise NotImplementedError
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.create_serializer_class(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
-        data = dict(serializer.validated_data)
-        data.setdefault("language", request.user.preferred_language or "en")
+    def call_ai(self, fn, *args, **kwargs):
         try:
-            obj = self.run(request.user.student_profile, data)
+            return fn(*args, **kwargs)
         except DatabaseError:
             # Not the AI's fault (e.g. unapplied migrations) -- let it surface
             # as a real 500 instead of a misleading "AI is busy".
@@ -82,6 +92,13 @@ class _CareerViewSet(
         except Exception as exc:
             logger.exception("Career Lab %s failed", self.basename)
             raise _coach_error(exc) from exc
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.create_serializer_class(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        data.setdefault("language", request.user.preferred_language or "en")
+        obj = self.call_ai(self.run, request.user.student_profile, data)
         return Response(self.get_serializer(obj).data, status=status.HTTP_201_CREATED)
 
 
@@ -93,8 +110,16 @@ class JobMatchViewSet(_CareerViewSet):
     serializer_class = JobMatchSerializer
     create_serializer_class = JobMatchCreateSerializer
 
+    ai_actions = ("cover_letter",)
+
     def run(self, student, data):
         return services.create_job_match(student=student, **data)
+
+    @action(detail=True, methods=["post"], url_path="cover-letter")
+    def cover_letter(self, request, pk=None):
+        """Writes (or rewrites) a cover letter for this job from the resume."""
+        match = self.call_ai(services.add_cover_letter, match=self.get_object())
+        return Response(self.get_serializer(match).data)
 
 
 class AnswerPracticeViewSet(_CareerViewSet):
@@ -120,3 +145,35 @@ class StudyPlanViewSet(mixins.UpdateModelMixin, _CareerViewSet):
 
     def run(self, student, data):
         return services.create_study_plan(student=student, **data)
+
+
+class QuizViewSet(_CareerViewSet):
+    """AI-written multiple-choice quiz on any topic. Answers stay hidden
+    until POST `{id}/submit/` with one option index (or null) per question."""
+
+    model = Quiz
+    serializer_class = QuizSerializer
+    create_serializer_class = QuizCreateSerializer
+
+    def run(self, student, data):
+        return services.create_quiz(student=student, **data)
+
+    @action(detail=True, methods=["post"])
+    def submit(self, request, pk=None):
+        quiz = self.get_object()
+        serializer = QuizSubmitSerializer(data=request.data, context={"quiz": quiz})
+        serializer.is_valid(raise_exception=True)
+        quiz = services.submit_quiz(quiz=quiz, answers=serializer.validated_data["answers"])
+        return Response(self.get_serializer(quiz).data)
+
+
+class CodeReviewViewSet(_CareerViewSet):
+    """Paste a problem and your solution; get correctness, complexity, bugs
+    and a corrected version, reviewed like a coding round."""
+
+    model = CodeReview
+    serializer_class = CodeReviewSerializer
+    create_serializer_class = CodeReviewCreateSerializer
+
+    def run(self, student, data):
+        return services.create_code_review(student=student, **data)

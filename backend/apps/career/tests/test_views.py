@@ -71,6 +71,16 @@ class TestJobMatch:
         assert response.status_code == 503
         assert not JobMatch.objects.exists()
 
+    def test_database_errors_are_not_reported_as_ai_busy(self, auth_client):
+        from django.db import ProgrammingError
+
+        with patch("apps.ai_engine.services.match_resume_to_job", return_value=FAKE_MATCH), patch(
+            "apps.career.models.JobMatch.objects.create", side_effect=ProgrammingError("no such table")
+        ):
+            response = auth_client.post(self.url, {"job_description": JOB_DESCRIPTION})
+
+        assert response.status_code == 500
+
     def test_expired_ai_key_is_named_in_the_error(self, auth_client):
         class AuthenticationError(Exception):
             pass

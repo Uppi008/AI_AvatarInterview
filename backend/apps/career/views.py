@@ -1,5 +1,6 @@
 import logging
 
+from django.db import DatabaseError
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
@@ -74,6 +75,10 @@ class _CareerViewSet(
         data.setdefault("language", request.user.preferred_language or "en")
         try:
             obj = self.run(request.user.student_profile, data)
+        except DatabaseError:
+            # Not the AI's fault (e.g. unapplied migrations) -- let it surface
+            # as a real 500 instead of a misleading "AI is busy".
+            raise
         except Exception as exc:
             logger.exception("Career Lab %s failed", self.basename)
             raise _coach_error(exc) from exc

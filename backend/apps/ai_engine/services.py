@@ -19,11 +19,14 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from .llm_client import get_chat_model
 from .schemas import (
+    AnswerCoachResult,
     AnswerEvaluationResult,
+    JobMatchResult,
     ModerationResult,
     QuestionBankResult,
     ReportSummaryResult,
     ResumeExtractionResult,
+    StudyPlanResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -497,3 +500,102 @@ def _summarize_session(session, evaluations, scores: dict) -> ReportSummaryResul
             "language": _language_name(session.language),
         }
     )
+
+
+# =====================================================================
+# Career Lab (apps.career): job match, answer coach, study plan
+# =====================================================================
+def match_resume_to_job(*, resume_text: str, job_title: str, job_description: str, language: str = "en") -> JobMatchResult:
+    """Scores a resume against a pasted job description and lists the gaps,
+    tailoring tips and the questions that employer is likely to ask."""
+    model = get_chat_model("career_coach", temperature=0.2).with_structured_output(JobMatchResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are a senior technical recruiter screening a candidate for the job below. "
+                "Compare the resume to the job's actual requirements and be a calibrated, honest "
+                "judge: a resume missing core requirements should score below 50. Only list a skill "
+                "as matched if the resume shows it; never invent experience. Resume tips must be "
+                "truthful edits (re-wording, re-ordering, surfacing real work), not fabrication. "
+                "Respond entirely in {language}.",
+            ),
+            (
+                "human",
+                "Job title: {job_title}\n\nJob description:\n{job_description}\n\nResume:\n{resume_text}",
+            ),
+        ]
+    )
+    return (prompt | model).invoke(
+        {
+            "job_title": job_title or "(not given)",
+            "job_description": job_description[:8000],
+            "resume_text": resume_text[:10000] or "(no resume uploaded -- judge from the job alone)",
+            "language": _language_name(language),
+        }
+    )
+
+
+def coach_answer(*, question: str, answer: str, target_role: str = "", language: str = "en") -> AnswerCoachResult:
+    """Grades a practice answer, breaks it down by STAR, and rewrites it
+    stronger while keeping the candidate's own facts."""
+    model = get_chat_model("career_coach", temperature=0.3).with_structured_output(AnswerCoachResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are an expert interview coach. Grade the candidate's answer to the interview "
+                "question honestly (a vague, one-line answer scores low). Check it against the STAR "
+                "structure (Situation, Task, Action, Result) -- for technical questions, treat "
+                "Situation/Task as the problem framing and Result as the outcome or trade-offs. "
+                "Then write improved_answer: the same story, told better, keeping only facts the "
+                "candidate gave and using [placeholders] for missing details. Respond entirely in "
+                "{language}.",
+            ),
+            ("human", "Target role: {target_role}\n\nQuestion: {question}\n\nCandidate's answer:\n{answer}"),
+        ]
+    )
+    return (prompt | model).invoke(
+        {
+            "question": question[:1000],
+            "answer": answer[:6000],
+            "target_role": target_role or "(not given)",
+            "language": _language_name(language),
+        }
+    )
+
+
+def build_study_plan(
+    *, weaknesses: list[str], strengths: list[str], target_role: str, days: int, language: str = "en"
+) -> StudyPlanResult:
+    """A day-by-day prep plan that targets the weaknesses the candidate's own
+    interviews and resume actually showed."""
+    model = get_chat_model("career_coach", temperature=0.4).with_structured_output(StudyPlanResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are an interview-prep mentor. Build exactly {days} days of study, one entry per "
+                "day numbered from 1, ordered from fundamentals to mock practice. Target the listed "
+                "weaknesses first; keep every task concrete and under an hour; recommend only free "
+                "resources that really exist (official docs, freeCodeCamp, MDN, LeetCode free "
+                "problems, CS50, etc.). Respond entirely in {language}.",
+            ),
+            (
+                "human",
+                "Target role: {target_role}\n\nWeaknesses seen in their interviews/resume:\n{weaknesses}"
+                "\n\nStrengths:\n{strengths}",
+            ),
+        ]
+    )
+    result: StudyPlanResult = (prompt | model).invoke(
+        {
+            "days": days,
+            "target_role": target_role or "Software engineer",
+            "weaknesses": "\n".join(f"- {w}" for w in weaknesses[:15]) or "- (none recorded yet -- general prep)",
+            "strengths": "\n".join(f"- {s}" for s in strengths[:10]) or "- (none recorded yet)",
+            "language": _language_name(language),
+        }
+    )
+    result.days = result.days[:days]
+    return result

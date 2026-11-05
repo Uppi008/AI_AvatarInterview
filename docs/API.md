@@ -105,6 +105,16 @@ The actual live interview (speaking questions, listening for answers, skip/repea
 | GET | `/reports/` | student | Own interview reports (read-only). |
 | GET | `/reports/{id}/` | student | Overall/communication/technical/confidence/body-language/eye-contact/resume-matching scores, strengths, weaknesses, improvement tips, PDF link. |
 
+### AI Career Lab — `apps.career` (`/career/`)
+
+All student-only; you only ever see your own rows. Creating runs the LLM (Groq, `career_coach` purpose), is throttled to 30/hour (`career_ai` scope), and returns `503 coach_unavailable` if the model call fails. `language` (`en`/`hi`/`te`) defaults to the user's `preferred_language`.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET/POST/DELETE | `/career/job-matches/` (`/{id}/`) | POST `{job_description (80-8000 chars), job_title?, company?, resume?}` → `match_score`, `verdict`, `matched_skills`, `missing_skills`, `strengths`, `resume_tips`, `likely_questions[{question, why_asked}]`. Uses your latest parsed resume when `resume` is omitted. |
+| GET/POST/DELETE | `/career/answer-practices/` (`/{id}/`) | POST `{question, answer, target_role?}` → overall/clarity/relevance/impact scores, `star` breakdown, `strengths`, `improvements`, `improved_answer`, plus `delivery` (word count, spoken time, filler words; computed without the LLM). |
+| GET/POST/PATCH/DELETE | `/career/study-plans/` (`/{id}/`) | POST `{target_role?, days (3-14, default 7)}` → day-by-day plan built from your last 5 report weaknesses + resume insight. PATCH `{completed_tasks: ["1-0", ...]}` (`"day-taskIndex"`) to track progress. |
+
 ### Admin — `apps.admin_panel` (`/admin/`)
 
 All require `role=admin`.

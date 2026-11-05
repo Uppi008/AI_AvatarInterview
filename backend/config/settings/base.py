@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "apps.reports",
     "apps.notifications",
     "apps.admin_panel",
+    "apps.career",
 ]
 
 MIDDLEWARE = [
@@ -133,6 +134,7 @@ REST_FRAMEWORK = {
         "auth": "10/min",
         "resume_upload": "10/hour",
         "interview_start": "20/hour",
+        "career_ai": "30/hour",
     },
     "EXCEPTION_HANDLER": "common.exceptions.custom_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",

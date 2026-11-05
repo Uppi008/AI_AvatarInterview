@@ -1,5 +1,7 @@
 {
-  "app": { "name": "AI_AvatarInterview" },
+  "app": {
+    "name": "AI_AvatarInterview"
+  },
   "common": {
     "loading": "लोड हो रहा है...",
     "submit": "सबमिट करें",
@@ -62,7 +64,8 @@
     "interviews": "इंटरव्यू",
     "resume": "रिज़्यूमे",
     "settings": "सेटिंग्स",
-    "logout": "लॉग आउट"
+    "logout": "लॉग आउट",
+    "careerLab": "AI करियर लैब"
   },
   "avatars": {
     "title": "अपना इंटरव्यूअर चुनें",
@@ -103,5 +106,12 @@
     "hiringRecommendation": "नियुक्ति सिफारिश",
     "downloadPdf": "PDF डाउनलोड करें",
     "backToDashboard": "डैशबोर्ड पर वापस जाएं"
+  },
+  "career": {
+    "heroTitle": "इंटरव्यू के बीच स्मार्ट तैयारी करें",
+    "heroSubtitle": "अपना रिज़्यूमे असली नौकरियों से मिलाएँ, हर जवाब पर कोचिंग पाएँ, और अपनी कमज़ोरियों पर बनी स्टडी प्लान अपनाएँ।",
+    "tabJobMatch": "जॉब मैच",
+    "tabCoach": "जवाब कोच",
+    "tabPlan": "स्टडी प्लान"
   }
 }

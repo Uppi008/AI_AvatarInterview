@@ -1,5 +1,7 @@
 {
-  "app": { "name": "AI_AvatarInterview" },
+  "app": {
+    "name": "AI_AvatarInterview"
+  },
   "common": {
     "loading": "Loading...",
     "submit": "Submit",
@@ -62,7 +64,8 @@
     "interviews": "Interviews",
     "resume": "Resume",
     "settings": "Settings",
-    "logout": "Log out"
+    "logout": "Log out",
+    "careerLab": "AI Career Lab"
   },
   "avatars": {
     "title": "Choose your interviewer",
@@ -103,5 +106,12 @@
     "hiringRecommendation": "Hiring recommendation",
     "downloadPdf": "Download PDF",
     "backToDashboard": "Back to dashboard"
+  },
+  "career": {
+    "heroTitle": "Prepare smarter between interviews",
+    "heroSubtitle": "Match your resume to real jobs, get coached on every answer, and follow a study plan built from your own weak spots.",
+    "tabJobMatch": "Job Match",
+    "tabCoach": "Answer Coach",
+    "tabPlan": "Study Plan"
   }
 }

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { Bot, LayoutDashboard, LogOut, Menu, Mic, Settings, User, X } from "lucide-react";
+import { Bot, LayoutDashboard, LogOut, Menu, Mic, Settings, Sparkles, User, X } from "lucide-react";
 
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { toggleSidebar } from "@/features/ui/uiSlice";
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { to: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
   { to: "/interviews", labelKey: "nav.interviews", icon: Mic },
   { to: "/resume", labelKey: "nav.resume", icon: User },
+  { to: "/career-lab", labelKey: "nav.careerLab", icon: Sparkles },
   { to: "/settings", labelKey: "nav.settings", icon: Settings },
 ] as const;
 

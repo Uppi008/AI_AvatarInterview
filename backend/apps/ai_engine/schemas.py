@@ -138,3 +138,70 @@ class ReportSummaryResult(BaseModel):
     recommended_projects: list[str] = Field(
         default_factory=list, description="2-3 concrete project ideas that would strengthen this candidate's profile."
     )
+
+
+# --- Career Lab: resume vs. job description ---
+class LikelyQuestion(BaseModel):
+    question: str
+    why_asked: str = Field(default="", description="One short line on which job requirement this probes")
+
+
+class JobMatchResult(BaseModel):
+    match_score: float = Field(ge=0, le=100, description="How well the resume fits this job, 0-100")
+    verdict: str = Field(description="One sentence overall fit verdict")
+    matched_skills: list[str] = Field(default_factory=list, description="Job requirements the resume clearly shows")
+    missing_skills: list[str] = Field(default_factory=list, description="Job requirements absent from the resume")
+    strengths: list[str] = Field(default_factory=list, description="2-4 reasons this candidate stands out for the role")
+    resume_tips: list[str] = Field(
+        default_factory=list, description="3-5 specific edits to tailor the resume to this job, honestly"
+    )
+    likely_questions: list[LikelyQuestion] = Field(
+        default_factory=list, description="5 questions this employer is likely to ask this candidate"
+    )
+
+
+# --- Career Lab: answer coach ---
+class StarComponent(BaseModel):
+    present: bool = False
+    comment: str = Field(default="", description="One short line on this part of the answer")
+
+
+class StarBreakdown(BaseModel):
+    situation: StarComponent = Field(default_factory=StarComponent)
+    task: StarComponent = Field(default_factory=StarComponent)
+    action: StarComponent = Field(default_factory=StarComponent)
+    result: StarComponent = Field(default_factory=StarComponent)
+
+
+class AnswerCoachResult(BaseModel):
+    overall_score: float = Field(ge=0, le=100)
+    clarity_score: float = Field(ge=0, le=100)
+    relevance_score: float = Field(ge=0, le=100)
+    impact_score: float = Field(ge=0, le=100, description="Concrete results, numbers, ownership")
+    star: StarBreakdown = Field(default_factory=StarBreakdown)
+    strengths: list[str] = Field(default_factory=list)
+    improvements: list[str] = Field(default_factory=list, description="2-4 specific, actionable changes")
+    improved_answer: str = Field(
+        description=(
+            "A stronger version of the candidate's own answer, keeping their facts -- never invent "
+            "employers, numbers or achievements; use [placeholders] where a detail is missing."
+        )
+    )
+
+
+# --- Career Lab: study plan ---
+class StudyDay(BaseModel):
+    day: int
+    title: str
+    focus: str = Field(description="The skill or weakness this day targets")
+    tasks: list[str] = Field(default_factory=list, description="2-4 concrete tasks, each doable in under an hour")
+    practice_question: str = Field(default="", description="One interview question to answer out loud that day")
+    resources: list[str] = Field(
+        default_factory=list, description="1-2 free resources by name (official docs, well-known free courses)"
+    )
+
+
+class StudyPlanResult(BaseModel):
+    summary: str = Field(description="Two sentences on what this plan fixes and why")
+    focus_areas: list[str] = Field(default_factory=list)
+    days: list[StudyDay] = Field(default_factory=list)

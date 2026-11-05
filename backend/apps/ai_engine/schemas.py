@@ -191,10 +191,11 @@ class AnswerCoachResult(BaseModel):
 
 # --- Career Lab: study plan ---
 class StudyDay(BaseModel):
-    day: int
+    # No day number here: the model mangled it in long outputs ('"day": 4",'),
+    # failing the whole call. Days are numbered by position in services.
     title: str
     focus: str = Field(description="The skill or weakness this day targets")
-    tasks: list[str] = Field(default_factory=list, description="2-4 concrete tasks, each doable in under an hour")
+    tasks: list[str] = Field(default_factory=list, description="2-3 short, concrete tasks, each doable in under an hour")
     practice_question: str = Field(default="", description="One interview question to answer out loud that day")
     resources: list[str] = Field(
         default_factory=list, description="1-2 free resources by name (official docs, well-known free courses)"

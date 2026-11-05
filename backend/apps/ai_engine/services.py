@@ -505,6 +505,22 @@ def _summarize_session(session, evaluations, scores: dict) -> ReportSummaryResul
 # =====================================================================
 # Career Lab (apps.career): job match, answer coach, study plan
 # =====================================================================
+# Long structured outputs occasionally come back as malformed tool-call JSON,
+# which Groq rejects with 400 "tool_use_failed". A fresh sample almost always
+# parses, so retry those (and only those) a couple of times.
+STRUCTURED_OUTPUT_ATTEMPTS = 3
+
+
+def _invoke_structured(chain, inputs: dict):
+    for attempt in range(1, STRUCTURED_OUTPUT_ATTEMPTS + 1):
+        try:
+            return chain.invoke(inputs)
+        except Exception as exc:
+            if "tool_use_failed" not in str(exc) or attempt == STRUCTURED_OUTPUT_ATTEMPTS:
+                raise
+            logger.warning("Malformed structured output (attempt %s), retrying", attempt)
+
+
 def match_resume_to_job(*, resume_text: str, job_title: str, job_description: str, language: str = "en") -> JobMatchResult:
     """Scores a resume against a pasted job description and lists the gaps,
     tailoring tips and the questions that employer is likely to ask."""
@@ -526,7 +542,8 @@ def match_resume_to_job(*, resume_text: str, job_title: str, job_description: st
             ),
         ]
     )
-    return (prompt | model).invoke(
+    return _invoke_structured(
+        prompt | model,
         {
             "job_title": job_title or "(not given)",
             "job_description": job_description[:8000],
@@ -555,7 +572,8 @@ def coach_answer(*, question: str, answer: str, target_role: str = "", language:
             ("human", "Target role: {target_role}\n\nQuestion: {question}\n\nCandidate's answer:\n{answer}"),
         ]
     )
-    return (prompt | model).invoke(
+    return _invoke_structured(
+        prompt | model,
         {
             "question": question[:1000],
             "answer": answer[:6000],
@@ -575,9 +593,9 @@ def build_study_plan(
         [
             (
                 "system",
-                "You are an interview-prep mentor. Build exactly {days} days of study, one entry per "
-                "day numbered from 1, ordered from fundamentals to mock practice. Target the listed "
-                "weaknesses first; keep every task concrete and under an hour; recommend only free "
+                "You are an interview-prep mentor. Build exactly {days} days of study, one list entry "
+                "per day in order, from fundamentals to mock practice. Target the listed "
+                "weaknesses first; give 2-3 short tasks per day, each one sentence and under an hour; recommend only free "
                 "resources that really exist (official docs, freeCodeCamp, MDN, LeetCode free "
                 "problems, CS50, etc.). Respond entirely in {language}.",
             ),
@@ -588,7 +606,8 @@ def build_study_plan(
             ),
         ]
     )
-    result: StudyPlanResult = (prompt | model).invoke(
+    result: StudyPlanResult = _invoke_structured(
+        prompt | model,
         {
             "days": days,
             "target_role": target_role or "Software engineer",

@@ -103,6 +103,6 @@ def create_study_plan(*, student, target_role: str = "", days: int = 7, language
         language=language,
         summary=result.summary,
         focus_areas=result.focus_areas,
-        days=[d.dict() for d in result.days],
+        days=[{"day": i, **d.dict()} for i, d in enumerate(result.days, start=1)],
         sources={"reports": len(reports), "resume": bool(insight)},
     )

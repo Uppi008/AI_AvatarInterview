@@ -32,8 +32,9 @@ FAKE_COACH = AnswerCoachResult(
 FAKE_PLAN = StudyPlanResult(
     summary="Plan",
     focus_areas=["SQL"],
-    days=[StudyDay(day=d, title=f"Day {d}", focus="SQL", tasks=["Read", "Practice"]) for d in range(1, 4)],
+    days=[StudyDay(title=f"Day {d}", focus="SQL", tasks=["Read", "Practice"]) for d in range(1, 4)],
 )
+PLAN_DAYS = [{"day": i, **d.dict()} for i, d in enumerate(FAKE_PLAN.days, start=1)]
 
 
 class TestJobMatch:
@@ -118,10 +119,11 @@ class TestStudyPlan:
         assert response.status_code == 201
         assert ai.call_args.kwargs["weaknesses"] == ["Weak SQL joins"]
         assert response.data["total_tasks"] == 6
+        assert [d["day"] for d in response.data["days"]] == [1, 2, 3]
         assert response.data["sources"] == {"reports": 1, "resume": False}
 
     def test_tick_off_tasks_and_reject_unknown_ones(self, auth_client, student):
-        plan = StudyPlan.objects.create(student=student, days=[d.dict() for d in FAKE_PLAN.days])
+        plan = StudyPlan.objects.create(student=student, days=PLAN_DAYS)
         url = f"{self.url}{plan.id}/"
 
         ok = auth_client.patch(url, {"completed_tasks": ["1-0", "2-1", "1-0"]})

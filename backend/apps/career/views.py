@@ -27,6 +27,23 @@ class CoachUnavailable(APIException):
     default_code = "coach_unavailable"
 
 
+def _coach_error(exc: Exception) -> CoachUnavailable:
+    """Names the real cause when it's one the user/admin can act on, instead
+    of a generic "busy" for every failure."""
+    name = type(exc).__name__
+    if name in ("AuthenticationError", "PermissionDeniedError") or "GROQ_API_KEY" in str(exc):
+        return CoachUnavailable(
+            "The AI service key is missing or expired. The site admin needs to set a new GROQ_API_KEY on the server.",
+            code="ai_key_invalid",
+        )
+    if name == "RateLimitError":
+        return CoachUnavailable(
+            "The free AI quota is used up for the moment. Please try again in a few minutes.",
+            code="ai_rate_limited",
+        )
+    return CoachUnavailable()
+
+
 class _CareerViewSet(
     ScopedThrottleOnCreateMixin,
     mixins.ListModelMixin,
@@ -59,7 +76,7 @@ class _CareerViewSet(
             obj = self.run(request.user.student_profile, data)
         except Exception as exc:
             logger.exception("Career Lab %s failed", self.basename)
-            raise CoachUnavailable() from exc
+            raise _coach_error(exc) from exc
         return Response(self.get_serializer(obj).data, status=status.HTTP_201_CREATED)
 
 

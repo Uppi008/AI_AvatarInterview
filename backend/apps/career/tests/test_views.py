@@ -70,6 +70,16 @@ class TestJobMatch:
         assert response.status_code == 503
         assert not JobMatch.objects.exists()
 
+    def test_expired_ai_key_is_named_in_the_error(self, auth_client):
+        class AuthenticationError(Exception):
+            pass
+
+        with patch("apps.ai_engine.services.match_resume_to_job", side_effect=AuthenticationError("expired")):
+            response = auth_client.post(self.url, {"job_description": JOB_DESCRIPTION})
+
+        assert response.status_code == 503
+        assert "GROQ_API_KEY" in response.data["error"]["detail"]
+
     def test_lists_only_own_matches(self, auth_client):
         JobMatch.objects.create(student=StudentProfileFactory(), job_description="x")
 

@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.resumes.models import Resume
 
-from .models import AnswerPractice, CodeReview, JobMatch, Quiz, StudyPlan
+from .models import AnswerPractice, CodeReview, GroupDiscussion, JobMatch, Quiz, StudyPlan
 
 LANGUAGES = ("en", "hi", "te")
 
@@ -85,7 +85,10 @@ class QuizSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Quiz
-        fields = ["id", "topic", "difficulty", "language", "questions", "answers", "score", "submitted_at", "created_at"]
+        fields = [
+            "id", "topic", "difficulty", "language", "category", "time_limit_seconds", "time_taken_seconds",
+            "questions", "answers", "score", "submitted_at", "created_at",
+        ]
         read_only_fields = fields
 
     def get_questions(self, quiz):
@@ -96,14 +99,22 @@ class QuizSerializer(serializers.ModelSerializer):
 
 
 class QuizCreateSerializer(serializers.Serializer):
-    topic = serializers.CharField(min_length=2, max_length=200)
+    topic = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
     difficulty = serializers.ChoiceField(choices=Quiz.Difficulty.choices, default=Quiz.Difficulty.MEDIUM)
-    count = serializers.IntegerField(min_value=3, max_value=15, default=10)
+    count = serializers.IntegerField(min_value=3, max_value=20, default=10)
     language = serializers.ChoiceField(choices=LANGUAGES, required=False)
+    category = serializers.ChoiceField(choices=Quiz.Category.choices, default=Quiz.Category.GENERAL)
+
+    def validate(self, attrs):
+        # A topic quiz needs a topic; an aptitude section already has one.
+        if attrs["category"] == Quiz.Category.GENERAL and len(attrs.get("topic", "").strip()) < 2:
+            raise serializers.ValidationError({"topic": "Enter a topic (at least 2 characters)."})
+        return attrs
 
 
 class QuizSubmitSerializer(serializers.Serializer):
     answers = serializers.ListField(child=serializers.IntegerField(min_value=0, max_value=3, allow_null=True))
+    time_taken_seconds = serializers.IntegerField(min_value=0, required=False, allow_null=True)
 
     def validate_answers(self, value):
         quiz = self.context["quiz"]
@@ -130,3 +141,31 @@ class CodeReviewCreateSerializer(serializers.Serializer):
     code = serializers.CharField(min_length=10, max_length=8000, trim_whitespace=False)
     code_language = serializers.ChoiceField(choices=CODE_LANGUAGES)
     language = serializers.ChoiceField(choices=LANGUAGES, required=False)
+
+
+class GroupDiscussionSerializer(serializers.ModelSerializer):
+    user_turns = serializers.IntegerField(read_only=True)
+    max_user_turns = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GroupDiscussion
+        fields = [
+            "id", "topic", "language", "participants", "transcript", "overall_score", "content_score",
+            "communication_score", "leadership_score", "listening_score", "summary", "strengths",
+            "improvements", "finished_at", "user_turns", "max_user_turns", "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_max_user_turns(self, obj) -> int:
+        from .services import GD_MAX_USER_TURNS
+
+        return GD_MAX_USER_TURNS
+
+
+class GroupDiscussionCreateSerializer(serializers.Serializer):
+    topic = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
+    language = serializers.ChoiceField(choices=LANGUAGES, required=False)
+
+
+class GroupDiscussionTurnSerializer(serializers.Serializer):
+    message = serializers.CharField(min_length=2, max_length=1500)

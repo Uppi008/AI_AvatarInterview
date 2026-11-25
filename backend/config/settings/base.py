@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.admin_panel",
     "apps.career",
+    "apps.engagement",
 ]
 
 MIDDLEWARE = [

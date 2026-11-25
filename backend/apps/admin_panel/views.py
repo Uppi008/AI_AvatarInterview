@@ -70,3 +70,54 @@ class PlatformAnalyticsView(APIView):
             "language_usage": dict(sessions.values_list("language").annotate(count=Count("id")).order_by()),
         }
         return Response(PlatformAnalyticsSerializer(data).data)
+
+
+class StudentProgressView(APIView):
+    """GET /api/v1/admin/students/?institution=&search= -- every student's
+    practice progress, for a college placement officer (TPO) dashboard."""
+
+    permission_classes = [IsAdminRole]
+
+    def get(self, request):
+        from django.db.models import Max, Q
+
+        from apps.users.models import StudentProfile
+
+        completed = Q(interview_sessions__status=InterviewSession.Status.COMPLETED)
+        students = (
+            StudentProfile.objects.filter(user__role=User.Role.STUDENT)
+            .select_related("user")
+            .annotate(
+                interviews_completed=Count("interview_sessions", filter=completed, distinct=True),
+                average_score=Avg("interview_sessions__report__overall_score"),
+                best_score=Max("interview_sessions__report__overall_score"),
+                last_interview_at=Max("interview_sessions__started_at"),
+            )
+            .order_by("-last_interview_at", "user__full_name")
+        )
+        institution = request.query_params.get("institution", "").strip()
+        if institution:
+            students = students.filter(institution__iexact=institution)
+        search = request.query_params.get("search", "").strip()
+        if search:
+            students = students.filter(Q(user__full_name__icontains=search) | Q(user__email__icontains=search))
+
+        rows = [
+            {
+                "id": str(s.id),
+                "full_name": s.user.full_name,
+                "email": s.user.email,
+                "institution": s.institution,
+                "graduation_year": s.graduation_year,
+                "interviews_completed": s.interviews_completed,
+                "average_score": round(float(s.average_score), 1) if s.average_score is not None else None,
+                "best_score": round(float(s.best_score), 1) if s.best_score is not None else None,
+                "last_interview_at": s.last_interview_at,
+                "joined_at": s.user.created_at,
+            }
+            for s in students[:500]
+        ]
+        institutions = sorted(
+            {i for i in StudentProfile.objects.exclude(institution="").values_list("institution", flat=True)}
+        )
+        return Response({"count": len(rows), "institutions": institutions, "results": rows})

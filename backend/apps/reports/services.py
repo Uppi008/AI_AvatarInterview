@@ -31,6 +31,18 @@ def create_report_and_send_email(*, session, report_data: dict) -> InterviewRepo
         },
     )
 
+    from apps.notifications.in_app import notify
+    from apps.notifications.models import Notification
+
+    notify(
+        user=session.student.user,
+        kind=Notification.Kind.REPORT_READY,
+        title=f"Your report is ready: {round(float(report.overall_score))}/100",
+        body=f"Interview with {session.avatar.name}. See your scores, strengths and what to improve.",
+        link=f"/interviews/{session.id}/report",
+        dedupe_key=f"report:{report.id}",
+    )
+
     from .tasks import render_and_email_report_task
 
     render_and_email_report_task.delay(report_id=str(report.id))

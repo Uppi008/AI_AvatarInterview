@@ -3,19 +3,22 @@ import logging
 from django.db import DatabaseError
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.response import Response
 
 from common.permissions import IsStudent
 from common.throttling import ScopedThrottleOnCreateMixin
 
 from . import services
-from .models import AnswerPractice, CodeReview, JobMatch, Quiz, StudyPlan
+from .models import AnswerPractice, CodeReview, GroupDiscussion, JobMatch, Quiz, StudyPlan
 from .serializers import (
     AnswerPracticeCreateSerializer,
     AnswerPracticeSerializer,
     CodeReviewCreateSerializer,
     CodeReviewSerializer,
+    GroupDiscussionCreateSerializer,
+    GroupDiscussionSerializer,
+    GroupDiscussionTurnSerializer,
     JobMatchCreateSerializer,
     JobMatchSerializer,
     QuizCreateSerializer,
@@ -163,7 +166,11 @@ class QuizViewSet(_CareerViewSet):
         quiz = self.get_object()
         serializer = QuizSubmitSerializer(data=request.data, context={"quiz": quiz})
         serializer.is_valid(raise_exception=True)
-        quiz = services.submit_quiz(quiz=quiz, answers=serializer.validated_data["answers"])
+        quiz = services.submit_quiz(
+            quiz=quiz,
+            answers=serializer.validated_data["answers"],
+            time_taken_seconds=serializer.validated_data.get("time_taken_seconds"),
+        )
         return Response(self.get_serializer(quiz).data)
 
 
@@ -177,3 +184,39 @@ class CodeReviewViewSet(_CareerViewSet):
 
     def run(self, student, data):
         return services.create_code_review(student=student, **data)
+
+
+class GroupDiscussionViewSet(_CareerViewSet):
+    """Group discussion practice: create starts the GD with AI participants,
+    `respond` adds the student's point (the AI participants reply), and
+    `finish` scores the student's contribution."""
+
+    model = GroupDiscussion
+    serializer_class = GroupDiscussionSerializer
+    create_serializer_class = GroupDiscussionCreateSerializer
+
+    ai_actions = ("respond", "finish")
+
+    def run(self, student, data):
+        return services.create_group_discussion(student=student, **data)
+
+    @action(detail=True, methods=["post"])
+    def respond(self, request, pk=None):
+        discussion = self.get_object()
+        serializer = GroupDiscussionTurnSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if discussion.finished_at or discussion.user_turns >= services.GD_MAX_USER_TURNS:
+            # Checked before the AI call so the user gets a clear 400, not a 503.
+            raise ValidationError({"detail": "This discussion can't take more turns. Finish it to see your feedback."})
+        discussion = self.call_ai(
+            services.add_group_discussion_turn, discussion=discussion, message=serializer.validated_data["message"]
+        )
+        return Response(self.get_serializer(discussion).data)
+
+    @action(detail=True, methods=["post"])
+    def finish(self, request, pk=None):
+        discussion = self.get_object()
+        if not discussion.finished_at and discussion.user_turns < services.GD_MIN_USER_TURNS_TO_SCORE:
+            raise ValidationError({"detail": "Say at least one thing in the discussion before finishing it."})
+        discussion = self.call_ai(services.finish_group_discussion, discussion=discussion)
+        return Response(self.get_serializer(discussion).data)

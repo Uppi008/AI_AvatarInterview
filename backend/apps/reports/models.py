@@ -46,6 +46,8 @@ class InterviewReport(BaseModel):
     pdf_file = models.FileField(upload_to=report_pdf_upload_path, blank=True, null=True)
     generated_at = models.DateTimeField(auto_now_add=True)
     emailed_at = models.DateTimeField(blank=True, null=True)
+    # Set when the student shares a read-only public link; null = private.
+    share_token = models.CharField(max_length=43, unique=True, null=True, blank=True)
 
     class Meta:
         db_table = "interview_reports"

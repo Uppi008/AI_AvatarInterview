@@ -5,6 +5,7 @@
 - StudyPlan: a day-by-day prep plan built from the candidate's own weak spots.
 - Quiz: AI-written multiple-choice self-test on any interview topic.
 - CodeReview: a coding-round answer reviewed like an interviewer would.
+- GroupDiscussion: a text/voice group discussion with AI participants, then scored.
 
 The LLM output is stored as plain JSON (not normalized tables) because
 these are read back whole and never queried by their inner fields.
@@ -88,6 +89,15 @@ class Quiz(BaseModel):
         MEDIUM = "medium", "Medium"
         HARD = "hard", "Hard"
 
+    class Category(models.TextChoices):
+        """GENERAL is a topic quiz; the rest are timed aptitude-test sections."""
+
+        GENERAL = "general", "Topic quiz"
+        QUANTITATIVE = "quantitative", "Quantitative aptitude"
+        LOGICAL = "logical", "Logical reasoning"
+        VERBAL = "verbal", "Verbal ability"
+        MIXED = "mixed", "Mixed aptitude"
+
     student = models.ForeignKey("users.StudentProfile", on_delete=models.CASCADE, related_name="quizzes")
     topic = models.CharField(max_length=200)
     difficulty = models.CharField(max_length=10, choices=Difficulty.choices, default=Difficulty.MEDIUM)
@@ -96,6 +106,9 @@ class Quiz(BaseModel):
     answers = models.JSONField(default=list, help_text="Chosen option index per question; null = skipped")
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
+    category = models.CharField(max_length=15, choices=Category.choices, default=Category.GENERAL)
+    time_limit_seconds = models.PositiveIntegerField(default=0, help_text="0 = untimed")
+    time_taken_seconds = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "career_quizzes"
@@ -125,3 +138,32 @@ class CodeReview(BaseModel):
         db_table = "career_code_reviews"
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["student", "-created_at"])]
+
+
+class GroupDiscussion(BaseModel):
+    """A group discussion (GD) round: the student debates a topic with AI
+    participants, then gets scored like a GD panel would score them."""
+
+    student = models.ForeignKey("users.StudentProfile", on_delete=models.CASCADE, related_name="group_discussions")
+    topic = models.CharField(max_length=300)
+    language = models.CharField(max_length=5, default="en")
+    participants = models.JSONField(default=list, help_text="[{name, stance}]")
+    transcript = models.JSONField(default=list, help_text="[{speaker, text, is_user}]")
+    overall_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    content_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    communication_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    leadership_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    listening_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    summary = models.TextField(blank=True)
+    strengths = models.JSONField(default=list)
+    improvements = models.JSONField(default=list)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "career_group_discussions"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["student", "-created_at"])]
+
+    @property
+    def user_turns(self) -> int:
+        return sum(1 for line in self.transcript if line.get("is_user"))

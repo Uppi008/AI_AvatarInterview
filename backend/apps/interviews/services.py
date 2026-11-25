@@ -13,8 +13,18 @@ def start_session(
     resume_id=None,
     language: str = InterviewSession.Language.ENGLISH,
     personality: str = "",
+    target_role: str = "",
+    company: str = "",
+    job_description: str = "",
+    interview_type: str = InterviewSession.InterviewType.MIXED,
+    question_count: int = 7,
+    scheduled_at=None,
 ) -> InterviewSession:
     """Creates the session, then generates its question bank.
+
+    With `scheduled_at`, the session is only booked (status SCHEDULED, no
+    questions yet); begin_scheduled_session() generates its questions when
+    the student actually starts it, so they reflect their latest resume.
 
     Deliberately NOT wrapped in one @transaction.atomic block: generate_question_bank()
     is a network call to the LLM provider, and holding a DB transaction open for the
@@ -31,14 +41,25 @@ def start_session(
     else:
         resume = Resume.objects.filter(student=student, is_active=True).first()
 
+    config = {
+        "student": student,
+        "avatar": avatar,
+        "resume": resume,
+        "language": language,
+        "personality": personality,
+        "target_role": target_role,
+        "company": company,
+        "job_description": job_description,
+        "interview_type": interview_type,
+        "question_count": question_count,
+    }
+    if scheduled_at:
+        return InterviewSession.objects.create(
+            **config, status=InterviewSession.Status.SCHEDULED, scheduled_at=scheduled_at
+        )
+
     session = InterviewSession.objects.create(
-        student=student,
-        avatar=avatar,
-        resume=resume,
-        language=language,
-        personality=personality,
-        status=InterviewSession.Status.IN_PROGRESS,
-        started_at=timezone.now(),
+        **config, status=InterviewSession.Status.IN_PROGRESS, started_at=timezone.now()
     )
 
     from apps.ai_engine.services import generate_question_bank
@@ -50,6 +71,42 @@ def start_session(
         raise
 
     return session
+
+
+def begin_scheduled_session(*, session: InterviewSession) -> InterviewSession:
+    """Turns a booked (SCHEDULED) session into a live one: picks up the
+    student's current active resume and generates the questions. On failure
+    the booking is left intact so the student can simply try again."""
+    if session.status != InterviewSession.Status.SCHEDULED:
+        raise ValueError("Only a scheduled interview can be started this way.")
+
+    from apps.ai_engine.services import generate_question_bank
+
+    active_resume = Resume.objects.filter(student=session.student, is_active=True).first()
+    if active_resume:
+        session.resume = active_resume
+    session.questions.all().delete()
+    generate_question_bank(session=session)
+
+    session.status = InterviewSession.Status.IN_PROGRESS
+    session.started_at = timezone.now()
+    session.save(update_fields=["resume", "status", "started_at", "updated_at"])
+    return session
+
+
+def retake_session(*, session: InterviewSession) -> InterviewSession:
+    """Starts a fresh interview with exactly the same setup as `session`."""
+    return start_session(
+        student=session.student,
+        avatar_id=session.avatar_id,
+        language=session.language,
+        personality=session.personality,
+        target_role=session.target_role,
+        company=session.company,
+        job_description=session.job_description,
+        interview_type=session.interview_type,
+        question_count=session.question_count,
+    )
 
 
 def end_session(*, session: InterviewSession, reason: str = "") -> InterviewSession:

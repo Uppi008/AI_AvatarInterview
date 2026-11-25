@@ -24,6 +24,8 @@ urlpatterns = [
     path("api/v1/reports/", include("apps.reports.urls")),
     path("api/v1/admin/", include("apps.admin_panel.urls")),
     path("api/v1/career/", include("apps.career.urls")),
+    path("api/v1/engagement/", include("apps.engagement.urls")),
+    path("api/v1/notifications/", include("apps.notifications.urls")),
 ]
 
 if settings.DEBUG or getattr(settings, "SERVE_MEDIA_FILES", False):

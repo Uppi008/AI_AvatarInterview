@@ -95,6 +95,10 @@ class AnswerEvaluationResult(BaseModel):
     problem_solving_score: float = Field(
         ge=0, le=100, description="Quality of reasoning/approach shown, independent of raw technical correctness"
     )
+    model_answer: str = Field(
+        default="",
+        description="A concise, strong example answer to this question (3-5 sentences), in the interview language",
+    )
     feedback: str = Field(description="1-2 sentences of specific, constructive feedback")
     follow_up_question: Optional[str] = Field(
         default=None, description="A natural follow-up question, only if the answer invites one"
@@ -245,3 +249,34 @@ class CodeReviewResult(BaseModel):
 class CoverLetterResult(BaseModel):
     subject: str = Field(description="Email subject line for the application")
     letter: str = Field(description="The cover letter body, 180-260 words, plain paragraphs")
+
+
+# --- Career Lab: group discussion ---
+class GDParticipant(BaseModel):
+    name: str = Field(description="A realistic Indian first name")
+    stance: str = Field(description="Their viewpoint on the topic in a few words, e.g. 'strongly in favour'")
+
+
+class GDLine(BaseModel):
+    speaker: str = Field(description="Exactly one of the participant names")
+    text: str = Field(description="What they say: 1-3 natural spoken sentences")
+
+
+class GDStartResult(BaseModel):
+    topic: str = Field(description="The discussion topic, as a short statement or question")
+    participants: list[GDParticipant] = Field(default_factory=list)
+    opening: list[GDLine] = Field(default_factory=list)
+
+
+class GDReplyResult(BaseModel):
+    lines: list[GDLine] = Field(default_factory=list)
+
+
+class GDEvaluationResult(BaseModel):
+    content_score: float = Field(ge=0, le=100, description="Relevance, depth and quality of the candidate's points")
+    communication_score: float = Field(ge=0, le=100, description="Clarity, structure and confidence of expression")
+    leadership_score: float = Field(ge=0, le=100, description="Initiating, steering, summarising, moving it forward")
+    listening_score: float = Field(ge=0, le=100, description="Building on and responding to others' points")
+    summary: str = Field(description="2-3 sentences of overall feedback, addressed to the candidate")
+    strengths: list[str] = Field(default_factory=list)
+    improvements: list[str] = Field(default_factory=list)

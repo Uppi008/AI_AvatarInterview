@@ -36,3 +36,34 @@ class EmailLog(BaseModel):
     class Meta:
         db_table = "email_logs"
         indexes = [models.Index(fields=["user", "email_type"])]
+
+
+class Notification(BaseModel):
+    """An in-app message shown under the bell in the top bar."""
+
+    class Kind(models.TextChoices):
+        REPORT_READY = "report_ready", _("Report ready")
+        REMINDER = "reminder", _("Reminder")
+        SCHEDULED = "scheduled", _("Scheduled interview")
+        BADGE = "badge", _("Badge earned")
+        GENERAL = "general", _("General")
+
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="notifications")
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.GENERAL)
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True)
+    link = models.CharField(max_length=300, blank=True, help_text="In-app path to open, e.g. /interviews/<id>/report")
+    read_at = models.DateTimeField(null=True, blank=True)
+    # Lets the same event (e.g. one report, one day's reminder) notify only once.
+    dedupe_key = models.CharField(max_length=120, null=True, blank=True)
+
+    class Meta:
+        db_table = "notifications"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "read_at"])]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "dedupe_key"], name="unique_notification_dedupe_key")
+        ]
+
+    def __str__(self):
+        return f"Notification<{self.user_id}> {self.title}"

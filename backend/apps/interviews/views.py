@@ -60,14 +60,52 @@ class InterviewSessionViewSet(
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
         session = services.start_session(
             student=request.user.student_profile,
-            avatar_id=serializer.validated_data["avatar_id"],
-            resume_id=serializer.validated_data.get("resume_id"),
-            language=serializer.validated_data["language"],
-            personality=serializer.validated_data.get("personality", ""),
+            avatar_id=data["avatar_id"],
+            resume_id=data.get("resume_id"),
+            language=data["language"],
+            personality=data.get("personality", ""),
+            target_role=data.get("target_role", ""),
+            company=data.get("company", ""),
+            job_description=data.get("job_description", ""),
+            interview_type=data["interview_type"],
+            question_count=data["question_count"],
+            scheduled_at=data.get("scheduled_at"),
         )
         return Response(InterviewSessionDetailSerializer(session).data, status=status.HTTP_201_CREATED)
+
+    def get_throttles(self):
+        # These also generate a question bank with the LLM, like `create`.
+        if self.action in ("begin", "retake"):
+            return [throttle() for throttle in self.throttle_classes]
+        return super().get_throttles()
+
+    @action(detail=True, methods=["post"])
+    def begin(self, request, pk=None):
+        """Starts a scheduled interview now (generates its questions)."""
+        session = self.get_object()
+        try:
+            session = services.begin_scheduled_session(session=session)
+        except ValueError as exc:
+            raise ValidationError({"detail": str(exc)}) from None
+        return Response(InterviewSessionDetailSerializer(session).data)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        """Cancels (deletes) a scheduled interview that hasn't started."""
+        session = self.get_object()
+        if session.status != InterviewSession.Status.SCHEDULED:
+            raise ValidationError({"detail": "Only a scheduled interview can be cancelled."})
+        session.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"])
+    def retake(self, request, pk=None):
+        """Starts a new interview with the same interviewer and setup."""
+        new_session = services.retake_session(session=self.get_object())
+        return Response(InterviewSessionDetailSerializer(new_session).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
     def end(self, request, pk=None):

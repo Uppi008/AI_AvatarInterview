@@ -33,6 +33,11 @@ class InterviewSession(BaseModel):
         MENTOR = "mentor", _("Mentor")
         RECRUITER = "recruiter", _("Recruiter")
 
+    class InterviewType(models.TextChoices):
+        MIXED = "mixed", _("Mixed")
+        HR = "hr", _("HR / Behavioral")
+        TECHNICAL = "technical", _("Technical")
+
     student = models.ForeignKey("users.StudentProfile", on_delete=models.CASCADE, related_name="interview_sessions")
     avatar = models.ForeignKey("avatars.Avatar", on_delete=models.PROTECT, related_name="interview_sessions")
     resume = models.ForeignKey(
@@ -47,6 +52,12 @@ class InterviewSession(BaseModel):
     duration_seconds = models.PositiveIntegerField(default=0)
     violation_count = models.PositiveSmallIntegerField(default=0)
     termination_reason = models.CharField(max_length=255, blank=True)
+    # What the student is preparing for -- steers question generation.
+    target_role = models.CharField(max_length=150, blank=True)
+    company = models.CharField(max_length=150, blank=True)
+    job_description = models.TextField(blank=True)
+    interview_type = models.CharField(max_length=10, choices=InterviewType.choices, default=InterviewType.MIXED)
+    question_count = models.PositiveSmallIntegerField(default=7)
 
     class Meta:
         db_table = "interview_sessions"
@@ -162,6 +173,7 @@ class AnswerEvaluation(BaseModel):
     grammar_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     problem_solving_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     feedback_text = models.TextField(blank=True)
+    model_answer = models.TextField(blank=True, help_text="A strong example answer to compare against")
     evaluated_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

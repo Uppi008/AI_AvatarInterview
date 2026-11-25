@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import AnswerEvaluation, InterviewAnswer, InterviewQuestion, InterviewSession
@@ -6,7 +7,10 @@ from .models import AnswerEvaluation, InterviewAnswer, InterviewQuestion, Interv
 class AnswerEvaluationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnswerEvaluation
-        fields = ["technical_score", "communication_score", "relevance_score", "confidence_score", "feedback_text"]
+        fields = [
+            "technical_score", "communication_score", "relevance_score", "confidence_score",
+            "grammar_score", "feedback_text", "model_answer",
+        ]
 
 
 class InterviewAnswerSerializer(serializers.ModelSerializer):
@@ -43,7 +47,7 @@ class InterviewSessionListSerializer(serializers.ModelSerializer):
         fields = [
             "id", "avatar", "avatar_name", "avatar_image", "language", "personality", "status",
             "scheduled_at", "started_at", "ended_at", "duration_seconds", "violation_count",
-            "answered_count", "report_score",
+            "answered_count", "report_score", "target_role", "company", "interview_type", "question_count",
         ]
 
     def get_answered_count(self, obj) -> int:
@@ -65,7 +69,9 @@ class InterviewSessionDetailSerializer(InterviewSessionListSerializer):
     questions = InterviewQuestionSerializer(many=True, read_only=True)
 
     class Meta(InterviewSessionListSerializer.Meta):
-        fields = InterviewSessionListSerializer.Meta.fields + ["termination_reason", "resume", "questions"]
+        fields = InterviewSessionListSerializer.Meta.fields + [
+            "termination_reason", "resume", "job_description", "questions",
+        ]
 
 
 class InterviewSessionCreateSerializer(serializers.Serializer):
@@ -77,3 +83,16 @@ class InterviewSessionCreateSerializer(serializers.Serializer):
     personality = serializers.ChoiceField(
         choices=InterviewSession.Personality.choices, required=False, allow_blank=True, default=""
     )
+    target_role = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    company = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    job_description = serializers.CharField(max_length=6000, required=False, allow_blank=True, default="")
+    interview_type = serializers.ChoiceField(
+        choices=InterviewSession.InterviewType.choices, default=InterviewSession.InterviewType.MIXED
+    )
+    question_count = serializers.IntegerField(min_value=3, max_value=15, default=7)
+    scheduled_at = serializers.DateTimeField(required=False, allow_null=True)
+
+    def validate_scheduled_at(self, value):
+        if value and value <= timezone.now():
+            raise serializers.ValidationError("Pick a time in the future.")
+        return value

@@ -6,7 +6,7 @@ from apps.reports.models import InterviewReport
 from apps.resumes.models import Resume
 
 from .delivery import analyze_delivery
-from .models import AnswerPractice, CodeReview, JobMatch, Quiz, StudyPlan
+from .models import AnswerPractice, CodeReview, GroupDiscussion, JobMatch, Quiz, StudyPlan
 
 # How many recent interview reports feed a study plan.
 REPORTS_FOR_PLAN = 5
@@ -127,25 +127,36 @@ def add_cover_letter(*, match: JobMatch) -> JobMatch:
     return match
 
 
-def create_quiz(*, student, topic: str, difficulty: str = "medium", count: int = 10, language: str = "en") -> Quiz:
-    result = ai.generate_quiz(topic=topic, difficulty=difficulty, count=count, language=language)
+# Seconds allowed per question in a timed aptitude section.
+APTITUDE_SECONDS_PER_QUESTION = 60
+
+
+def create_quiz(
+    *, student, topic: str = "", difficulty: str = "medium", count: int = 10, language: str = "en",
+    category: str = Quiz.Category.GENERAL,
+) -> Quiz:
+    result = ai.generate_quiz(topic=topic, difficulty=difficulty, count=count, language=language, category=category)
+    is_aptitude = category != Quiz.Category.GENERAL
     return Quiz.objects.create(
         student=student,
-        topic=topic,
+        topic=topic or Quiz.Category(category).label,
         difficulty=difficulty,
         language=language,
+        category=category,
+        time_limit_seconds=len(result.questions) * APTITUDE_SECONDS_PER_QUESTION if is_aptitude else 0,
         questions=[q.dict() for q in result.questions],
     )
 
 
-def submit_quiz(*, quiz: Quiz, answers: list) -> Quiz:
+def submit_quiz(*, quiz: Quiz, answers: list, time_taken_seconds: int | None = None) -> Quiz:
     """Scores server-side: the correct answers never reach the browser
     before submission (see QuizSerializer)."""
     correct = sum(1 for q, a in zip(quiz.questions, answers) if a == q["correct_index"])
     quiz.answers = answers
     quiz.score = round(correct / len(quiz.questions) * 100, 2) if quiz.questions else 0
     quiz.submitted_at = timezone.now()
-    quiz.save(update_fields=["answers", "score", "submitted_at", "updated_at"])
+    quiz.time_taken_seconds = time_taken_seconds
+    quiz.save(update_fields=["answers", "score", "submitted_at", "time_taken_seconds", "updated_at"])
     return quiz
 
 
@@ -169,3 +180,83 @@ def create_code_review(*, student, problem: str, code: str, code_language: str, 
         improved_code=result.improved_code,
         follow_up_question=result.follow_up_question,
     )
+
+
+# --------------------------------------------------------------------------
+# Group discussion
+# --------------------------------------------------------------------------
+# Enough for a real discussion; keeps a single GD from burning the AI quota.
+GD_MAX_USER_TURNS = 10
+GD_MIN_USER_TURNS_TO_SCORE = 1
+
+
+def _candidate_name(student) -> str:
+    full_name = student.user.full_name or ""
+    return full_name.split(" ")[0] if full_name else "You"
+
+
+def create_group_discussion(*, student, topic: str = "", language: str = "en") -> GroupDiscussion:
+    result = ai.start_group_discussion(topic=topic, language=language)
+    participants = [p.dict() for p in result.participants[:3]]
+    names = {p["name"] for p in participants}
+    opening = [
+        {"speaker": line.speaker, "text": line.text, "is_user": False}
+        for line in result.opening
+        if line.speaker in names
+    ]
+    return GroupDiscussion.objects.create(
+        student=student,
+        topic=result.topic[:300] or topic[:300],
+        language=language,
+        participants=participants,
+        transcript=opening,
+    )
+
+
+def add_group_discussion_turn(*, discussion: GroupDiscussion, message: str) -> GroupDiscussion:
+    if discussion.finished_at:
+        raise ValueError("This discussion has already finished.")
+    if discussion.user_turns >= GD_MAX_USER_TURNS:
+        raise ValueError("You've reached the turn limit. Finish the discussion to get your feedback.")
+    speaker = _candidate_name(discussion.student)
+    transcript = discussion.transcript + [{"speaker": speaker, "text": message.strip(), "is_user": True}]
+    reply = ai.continue_group_discussion(
+        topic=discussion.topic,
+        participants=discussion.participants,
+        transcript=transcript,
+        language=discussion.language,
+    )
+    allowed = {p["name"] for p in discussion.participants}
+    transcript += [
+        {"speaker": line.speaker, "text": line.text, "is_user": False}
+        for line in reply.lines
+        if line.speaker in allowed
+    ]
+    discussion.transcript = transcript
+    discussion.save(update_fields=["transcript", "updated_at"])
+    return discussion
+
+
+def finish_group_discussion(*, discussion: GroupDiscussion) -> GroupDiscussion:
+    if discussion.finished_at:
+        return discussion
+    if discussion.user_turns < GD_MIN_USER_TURNS_TO_SCORE:
+        raise ValueError("Say at least one thing in the discussion before finishing it.")
+    result = ai.evaluate_group_discussion(
+        topic=discussion.topic,
+        transcript=discussion.transcript,
+        candidate=_candidate_name(discussion.student),
+        language=discussion.language,
+    )
+    scores = [result.content_score, result.communication_score, result.leadership_score, result.listening_score]
+    discussion.content_score = round(result.content_score, 2)
+    discussion.communication_score = round(result.communication_score, 2)
+    discussion.leadership_score = round(result.leadership_score, 2)
+    discussion.listening_score = round(result.listening_score, 2)
+    discussion.overall_score = round(sum(scores) / len(scores), 2)
+    discussion.summary = result.summary
+    discussion.strengths = result.strengths
+    discussion.improvements = result.improvements
+    discussion.finished_at = timezone.now()
+    discussion.save()
+    return discussion

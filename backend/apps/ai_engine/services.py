@@ -24,6 +24,9 @@ from .schemas import (
     AnswerEvaluationResult,
     CodeReviewResult,
     CoverLetterResult,
+    GDEvaluationResult,
+    GDReplyResult,
+    GDStartResult,
     JobMatchResult,
     ModerationResult,
     QuestionBankResult,
@@ -216,6 +219,9 @@ def generate_question_bank(*, session) -> list:
             f"Resume summary: {insight_summary}"
         )
 
+    target_context = _target_context(session)
+    mix_instruction = _question_mix_instruction(session)
+
     model = get_chat_model("question_generation").with_structured_output(QuestionBankResult)
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -236,11 +242,9 @@ def generate_question_bank(*, session) -> list:
                 "project) rather than generic textbook questions. Only ask about technologies "
                 "that actually appear in the resume context below -- never invent an unrelated "
                 "stack.\n\n"
-                "Generate a well-structured interview question bank: 2-3 resume-based questions "
-                "tailored to the candidate's actual background, 2-3 behavioral questions, and "
-                "(only if this persona is technical) 1-2 coding/problem-solving questions "
-                "calibrated to their experience level. 6 to 8 questions total, ordered from "
-                "easier to harder.",
+                "{mix_instruction} Exactly {question_count} questions total, ordered from "
+                "easier to harder.\n\n"
+                "{target_context}",
             ),
             ("human", "Candidate resume context:\n{resume_context}"),
         ]
@@ -254,6 +258,9 @@ def generate_question_bank(*, session) -> list:
             "difficulty": style["difficulty"],
             "language": _language_name(session.language),
             "resume_context": resume_context,
+            "mix_instruction": mix_instruction,
+            "question_count": session.question_count or 7,
+            "target_context": target_context,
         }
     )
 
@@ -265,9 +272,51 @@ def generate_question_bank(*, session) -> list:
             difficulty=q.difficulty,
             order_index=i,
         )
-        for i, q in enumerate(result.questions)
+        for i, q in enumerate(result.questions[: max(session.question_count or 7, 1)])
     ]
     return InterviewQuestion.objects.bulk_create(questions)
+
+
+def _target_context(session) -> str:
+    """What the candidate is preparing for (role/company/job post), if given."""
+    parts = []
+    if session.target_role:
+        parts.append(f"Target role: {session.target_role}")
+    if session.company:
+        parts.append(f"Target company: {session.company}")
+    if session.job_description:
+        parts.append(f"Job description:\n{session.job_description[:3000]}")
+    if not parts:
+        return "No specific target job was given."
+    # Passed as a prompt *value*, so braces in a pasted job post are safe as-is.
+    detail = "\n".join(parts)
+    return (
+        "The candidate is preparing for this specific opportunity -- tailor the questions to it "
+        "(the skills the role needs, the kind of questions this company is known for), while "
+        "still grounding them in the candidate's real background:\n" + detail
+    )
+
+
+def _question_mix_instruction(session) -> str:
+    """Which kinds of questions to generate, from the session's interview_type."""
+    from apps.interviews.models import InterviewSession
+
+    if session.interview_type == InterviewSession.InterviewType.HR:
+        return (
+            "This is an HR / behavioral round: ask only behavioral and resume-based questions "
+            "(motivation, teamwork, conflict, strengths/weaknesses, career goals) -- no coding."
+        )
+    if session.interview_type == InterviewSession.InterviewType.TECHNICAL:
+        return (
+            "This is a technical round: ask mostly technical resume-based questions about the "
+            "candidate's stack and 1-3 coding/problem-solving questions calibrated to their level, "
+            "with at most one behavioral question."
+        )
+    return (
+        "Generate a well-structured interview question bank: resume-based questions tailored to "
+        "the candidate's actual background, behavioral questions, and (only if this persona is "
+        "technical) 1-2 coding/problem-solving questions calibrated to their experience level."
+    )
 
 
 # =====================================================================
@@ -298,7 +347,9 @@ def evaluate_answer(*, question, answer) -> dict:
                 "clear.' / 'Nice, I like that example.' / 'Hmm, a bit thin, but okay.') that matches "
                 "how well they actually did, then at most one brief constructive sentence. 1-2 "
                 "sentences total, in {language}. Only propose a follow-up question if the answer was "
-                "vague, incomplete, or invites a natural deeper probe -- otherwise leave it null.",
+                "vague, incomplete, or invites a natural deeper probe -- otherwise leave it null. "
+                "Separately, write model_answer: a concise, strong example answer to the question "
+                "(3-5 sentences, in {language}) the candidate can compare their own answer against.",
             ),
             ("human", "Question ({question_type}): {question_text}\n\nCandidate's answer:\n{answer_text}"),
         ]
@@ -327,6 +378,7 @@ def evaluate_answer(*, question, answer) -> dict:
             "grammar_score": result.grammar_score,
             "problem_solving_score": result.problem_solving_score,
             "feedback_text": result.feedback,
+            "model_answer": result.model_answer,
         },
     )
 
@@ -624,26 +676,62 @@ def build_study_plan(
     return result
 
 
-def generate_quiz(*, topic: str, difficulty: str, count: int, language: str = "en") -> QuizResult:
-    """Multiple-choice questions for self-testing on an interview topic."""
+APTITUDE_SECTIONS = {
+    "quantitative": "quantitative aptitude (percentages, profit and loss, ratios, time and work, "
+    "time-speed-distance, simple/compound interest, averages, number series)",
+    "logical": "logical reasoning (seating arrangements, blood relations, coding-decoding, syllogisms, "
+    "direction sense, series and pattern completion)",
+    "verbal": "verbal ability (synonyms/antonyms, sentence correction, fill in the blanks, "
+    "reading comprehension with a short passage, para-jumbles)",
+    "mixed": "a mix of quantitative aptitude, logical reasoning and verbal ability",
+}
+
+
+def generate_quiz(
+    *, topic: str, difficulty: str, count: int, language: str = "en", category: str = "general"
+) -> QuizResult:
+    """Multiple-choice questions for self-testing on an interview topic, or a
+    campus-placement style aptitude test section (`category`)."""
     model = get_chat_model("career_coach", temperature=0.6).with_structured_output(QuizResult)
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "You are a technical interviewer writing a {difficulty} multiple-choice quiz. Write "
-                "exactly {count} questions on the topic below, the kind asked in real job interviews. "
-                "Each has exactly 4 plausible options with one unambiguously correct answer; vary "
-                "which position is correct. Keep questions and options short; put any code inline. "
-                "Respond entirely in {language}.",
-            ),
-            ("human", "Topic: {topic}"),
-        ]
-    )
-    result: QuizResult = _invoke_structured(
-        prompt | model,
-        {"topic": topic[:200], "difficulty": difficulty, "count": count, "language": _language_name(language)},
-    )
+    if category in APTITUDE_SECTIONS:
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You write campus-placement aptitude tests like those used by TCS, Infosys, Wipro "
+                    "and Accenture. Write exactly {count} {difficulty} multiple-choice questions on "
+                    "{section}. Every quantitative question must have one exactly correct numeric "
+                    "answer -- solve it yourself step by step before writing the options, and make the "
+                    "wrong options common mistakes. Each question has exactly 4 options; vary which "
+                    "position is correct. The explanation shows the short working. Respond entirely in "
+                    "{language}.",
+                ),
+                ("human", "Focus (optional): {topic}"),
+            ]
+        )
+        inputs = {
+            "section": APTITUDE_SECTIONS[category],
+            "topic": topic[:200] or "any",
+            "difficulty": difficulty,
+            "count": count,
+            "language": _language_name(language),
+        }
+    else:
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are a technical interviewer writing a {difficulty} multiple-choice quiz. Write "
+                    "exactly {count} questions on the topic below, the kind asked in real job interviews. "
+                    "Each has exactly 4 plausible options with one unambiguously correct answer; vary "
+                    "which position is correct. Keep questions and options short; put any code inline. "
+                    "Respond entirely in {language}.",
+                ),
+                ("human", "Topic: {topic}"),
+            ]
+        )
+        inputs = {"topic": topic[:200], "difficulty": difficulty, "count": count, "language": _language_name(language)}
+    result: QuizResult = _invoke_structured(prompt | model, inputs)
     # Drop anything malformed rather than show a broken question.
     result.questions = [
         q for q in result.questions if len(q.options) == 4 and 0 <= q.correct_index <= 3
@@ -718,6 +806,100 @@ def write_cover_letter(
             "company": company or "your company",
             "job_description": job_description[:6000],
             "resume_text": resume_text[:8000] or "(no resume available -- keep it general and honest)",
+            "language": _language_name(language),
+        },
+    )
+
+
+
+# =====================================================================
+# Career Lab: group discussion
+# =====================================================================
+def _gd_transcript_text(transcript: list) -> str:
+    return "\n".join(f"{line['speaker']}: {line['text']}" for line in transcript)[-8000:]
+
+
+def start_group_discussion(*, topic: str = "", language: str = "en") -> GDStartResult:
+    """Picks (or uses) a GD topic, creates 3 AI participants with different
+    stances, and writes the opening: the first one or two speakers."""
+    model = get_chat_model("career_coach", temperature=0.8).with_structured_output(GDStartResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You run group-discussion (GD) rounds for campus placements in India. If no topic is "
+                "given, choose a current, debatable GD topic (technology, business, society or "
+                "abstract). Create exactly 3 participants with realistic Indian first names and "
+                "clearly different stances. Then write the opening: 2 lines, by two different "
+                "participants, each 1-3 natural spoken sentences that make a clear point, leaving "
+                "room for the candidate to join. Respond entirely in {language}.",
+            ),
+            ("human", "Topic: {topic}"),
+        ]
+    )
+    result: GDStartResult = _invoke_structured(
+        prompt | model, {"topic": topic[:300] or "(choose one)", "language": _language_name(language)}
+    )
+    if not result.participants or not result.opening:
+        raise RuntimeError("The model returned an empty group discussion.")
+    return result
+
+
+def continue_group_discussion(*, topic: str, participants: list, transcript: list, language: str = "en") -> GDReplyResult:
+    """The AI participants react to what was just said (usually the
+    candidate): 1-2 short lines that agree, challenge or build on it."""
+    model = get_chat_model("career_coach", temperature=0.8).with_structured_output(GDReplyResult)
+    names = ", ".join(f"{p['name']} ({p['stance']})" for p in participants)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You voice the AI participants in a group discussion on: {topic}. Participants: "
+                "{names}. The candidate is a real person also in the discussion. Continue naturally "
+                "with 1 or 2 lines by DIFFERENT participants (never the candidate): react directly to "
+                "the latest point -- agree, politely challenge with a counter-example, or build on "
+                "it -- and stay true to each participant's stance. 1-3 spoken sentences each, no "
+                "speeches. Respond entirely in {language}.",
+            ),
+            ("human", "Discussion so far:\n{transcript}"),
+        ]
+    )
+    result: GDReplyResult = _invoke_structured(
+        prompt | model,
+        {
+            "topic": topic,
+            "names": names,
+            "transcript": _gd_transcript_text(transcript),
+            "language": _language_name(language),
+        },
+    )
+    allowed = {p["name"] for p in participants}
+    result.lines = [line for line in result.lines if line.speaker in allowed][:2]
+    return result
+
+
+def evaluate_group_discussion(*, topic: str, transcript: list, candidate: str, language: str = "en") -> GDEvaluationResult:
+    """Scores only the candidate's contribution, like a GD panel would."""
+    model = get_chat_model("career_coach", temperature=0.2).with_structured_output(GDEvaluationResult)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You are a panel assessor scoring a candidate in a placement group discussion on: "
+                "{topic}. Judge ONLY the lines spoken by '{candidate}', in the context of the whole "
+                "discussion. Score 0-100 each: content, communication, leadership (initiating, "
+                "steering, summarising) and listening (responding to and building on others). Very "
+                "few or very short contributions must score low. Write all feedback in {language}.",
+            ),
+            ("human", "Transcript:\n{transcript}"),
+        ]
+    )
+    return _invoke_structured(
+        prompt | model,
+        {
+            "topic": topic,
+            "candidate": candidate,
+            "transcript": _gd_transcript_text(transcript),
             "language": _language_name(language),
         },
     )

@@ -28,4 +28,27 @@ export interface InterviewReport {
   pdf_file: string | null;
   generated_at: string;
   emailed_at: string | null;
+  /** Set while a public read-only link exists. */
+  share_token: string | null;
+}
+
+export interface SharedReport {
+  candidate_name: string;
+  avatar_name: string;
+  target_role: string;
+  interview_date: string | null;
+  overall_score: string;
+  communication_score: string;
+  technical_score: string;
+  confidence_score: string;
+  body_language_score: string;
+  eye_contact_score: string;
+  voice_clarity_score: string;
+  grammar_score: string;
+  problem_solving_score: string;
+  strengths: string[];
+  improvement_tips: string[];
+  hiring_recommendation: HiringRecommendation;
+  hiring_recommendation_display: string;
+  generated_at: string;
 }

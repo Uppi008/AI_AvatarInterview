@@ -7,6 +7,7 @@ import { AuthLayout } from "@/layouts/AuthLayout";
 import { cn } from "@/utils/cn";
 
 import { HeroSection } from "../components/HeroSection";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { LoginForm } from "../components/LoginForm";
 import { RegisterForm } from "../components/RegisterForm";
 
@@ -68,6 +69,7 @@ export function AuthPage() {
             </p>
 
             {mode === "login" ? <LoginForm /> : <RegisterForm />}
+            <GoogleSignInButton />
 
             <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
               {mode === "login" ? (

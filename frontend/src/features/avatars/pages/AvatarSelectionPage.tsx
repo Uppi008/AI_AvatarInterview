@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   BrainCircuit,
+  Briefcase,
+  CalendarClock,
+  ChevronDown,
   Check,
   FileText,
   FileWarning,
@@ -24,9 +27,11 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Input } from "@/components/ui/Input";
+import { PillGroup } from "@/components/ui/PillGroup";
 import { LoadingRegion, Skeleton } from "@/components/ui/Skeleton";
 import { interviewsApi } from "@/features/interviews/api";
-import type { InterviewPersonality } from "@/features/interviews/types";
+import type { InterviewPersonality, InterviewType } from "@/features/interviews/types";
 import { resumeApi } from "@/features/resume/api";
 import type { Resume } from "@/features/resume/types";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
@@ -63,6 +68,29 @@ const PERSONALITY_OPTIONS: { value: InterviewPersonality; label: string; hint: s
   { value: "mentor", label: "Mentor", hint: "Supportive and growth-oriented, room to think out loud." },
   { value: "recruiter", label: "Recruiter", hint: "Broad first-round screen across culture fit and fundamentals." },
 ];
+
+const INTERVIEW_TYPES: { value: InterviewType; label: string }[] = [
+  { value: "mixed", label: "Mixed" },
+  { value: "hr", label: "HR only" },
+  { value: "technical", label: "Technical only" },
+];
+
+const QUESTION_COUNTS = ["5", "7", "10", "15"] as const;
+
+/** Prefill passed from elsewhere, e.g. Career Lab's Job Match "Practice this job". */
+export interface InterviewPrefill {
+  target_role?: string;
+  company?: string;
+  job_description?: string;
+}
+
+/** Value for a datetime-local input, one hour from now, in local time. */
+function defaultScheduleValue() {
+  const d = new Date(Date.now() + 60 * 60 * 1000);
+  d.setMinutes(0, 0, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 const DIFFICULTY_TABS: { value: Difficulty | ""; label: string }[] = [
   { value: "", label: "All levels" },
@@ -137,6 +165,7 @@ function StartingOverlay({ avatar }: { avatar: Avatar }) {
 export function AvatarSelectionPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const prefill = (useLocation().state ?? {}) as InterviewPrefill;
 
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,6 +174,14 @@ export function AvatarSelectionPage() {
   const [query, setQuery] = useState("");
   const [language, setLanguage] = useState<Language>("en");
   const [personality, setPersonality] = useState<InterviewPersonality>("");
+  const [targetRole, setTargetRole] = useState(prefill.target_role ?? "");
+  const [company, setCompany] = useState(prefill.company ?? "");
+  const [jobDescription, setJobDescription] = useState(prefill.job_description ?? "");
+  const [showJobDescription, setShowJobDescription] = useState(Boolean(prefill.job_description));
+  const [interviewType, setInterviewType] = useState<InterviewType>("mixed");
+  const [questionCount, setQuestionCount] = useState<(typeof QUESTION_COUNTS)[number]>("7");
+  const [scheduleLater, setScheduleLater] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState(defaultScheduleValue);
   const [selected, setSelected] = useState<Avatar | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,10 +212,27 @@ export function AvatarSelectionPage() {
   const handleStart = async () => {
     if (!selected) return;
     setError(null);
+    const scheduledAt = scheduleLater ? new Date(scheduleAt) : null;
+    if (scheduledAt && (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now())) {
+      setError("Pick a date and time in the future to schedule the interview.");
+      return;
+    }
     setStarting(true);
     try {
-      const { data: session } = await interviewsApi.start({ avatar_id: selected.id, language, personality });
-      navigate(`/interviews/${session.id}/live`);
+      const { data: session } = await interviewsApi.start({
+        avatar_id: selected.id,
+        language,
+        personality,
+        target_role: targetRole.trim(),
+        company: company.trim(),
+        job_description: showJobDescription ? jobDescription.trim() : "",
+        interview_type: interviewType,
+        question_count: Number(questionCount),
+        ...(scheduledAt ? { scheduled_at: scheduledAt.toISOString() } : {}),
+      });
+      navigate(scheduledAt ? "/interviews" : `/interviews/${session.id}/live`, {
+        state: scheduledAt ? { scheduled: session.id } : undefined,
+      });
     } catch (err) {
       setError(getApiErrorMessage(err, "Couldn't start the interview. Please try again."));
       setStarting(false);
@@ -267,6 +321,97 @@ export function AvatarSelectionPage() {
               ))}
             </div>
             {personalityHint && <p className="mt-2.5 text-sm text-slate-500 dark:text-slate-400">{personalityHint}</p>}
+          </div>
+        </Card>
+
+        {/* Target job, round type and length */}
+        <Card className="flex flex-col gap-5">
+          <div>
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900 dark:text-white">
+              <Briefcase className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+              {t("avatars.targetJob", "What are you preparing for?")}
+              <span className="font-normal text-slate-400">({t("common.optional", "optional")})</span>
+            </p>
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+              {t("avatars.targetJobHint", "Questions will be tailored to this role and company.")}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input
+              id="target-role"
+              label={t("avatars.targetRole", "Role")}
+              placeholder="e.g. Java Developer, Data Analyst"
+              value={targetRole}
+              onChange={(e) => setTargetRole(e.target.value)}
+              maxLength={150}
+            />
+            <Input
+              id="target-company"
+              label={t("avatars.company", "Company")}
+              placeholder="e.g. TCS, Infosys, Amazon"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              maxLength={150}
+            />
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowJobDescription((v) => !v)}
+              aria-expanded={showJobDescription}
+              className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
+            >
+              <ChevronDown className={cn("h-4 w-4 transition-transform", showJobDescription && "rotate-180")} />
+              {t("avatars.addJobDescription", "Paste the job description")}
+            </button>
+            {showJobDescription && (
+              <textarea
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                maxLength={6000}
+                rows={5}
+                aria-label={t("avatars.jobDescription", "Job description")}
+                placeholder={t("avatars.jobDescriptionPlaceholder", "Paste the job post here for the most relevant questions")}
+                className="mt-2 w-full resize-y rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              />
+            )}
+          </div>
+          <div className="flex flex-wrap gap-x-8 gap-y-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <PillGroup
+              label={t("avatars.roundType", "Round")}
+              className="flex-wrap"
+              options={INTERVIEW_TYPES}
+              value={interviewType}
+              onChange={setInterviewType}
+            />
+            <PillGroup
+              label={t("avatars.questionCount", "Questions")}
+              className="flex-wrap"
+              options={QUESTION_COUNTS.map((c) => ({ value: c, label: c }))}
+              value={questionCount}
+              onChange={setQuestionCount}
+            />
+            <div className="flex flex-col gap-1.5">
+              <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={scheduleLater}
+                  onChange={(e) => setScheduleLater(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+                <CalendarClock className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                {t("avatars.scheduleLater", "Schedule for later")}
+              </label>
+              {scheduleLater && (
+                <input
+                  type="datetime-local"
+                  value={scheduleAt}
+                  onChange={(e) => setScheduleAt(e.target.value)}
+                  aria-label={t("avatars.scheduleTime", "Interview date and time")}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:[color-scheme:dark]"
+                />
+              )}
+            </div>
           </div>
         </Card>
 
@@ -372,7 +517,8 @@ export function AvatarSelectionPage() {
                 <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                   {LANGUAGE_OPTIONS.find((l) => l.value === language)?.label} ·{" "}
                   {PERSONALITY_OPTIONS.find((p) => p.value === personality)?.label} style ·{" "}
-                  <span className="capitalize">{selected.difficulty}</span>
+                  {INTERVIEW_TYPES.find((x) => x.value === interviewType)?.label} · {questionCount} questions
+                  {targetRole.trim() && <> · {targetRole.trim()}</>}
                 </p>
               </div>
               <button
@@ -383,17 +529,19 @@ export function AvatarSelectionPage() {
               >
                 <X className="h-4 w-4" />
               </button>
-              <Button onClick={() => void handleStart()} disabled={starting} className="shrink-0">
-                <Sparkles className="h-4 w-4" />
-                <span className="hidden sm:inline">Start interview</span>
-                <span className="sm:hidden">Start</span>
+              <Button onClick={() => void handleStart()} disabled={starting} isLoading={starting && scheduleLater} className="shrink-0">
+                {scheduleLater ? <CalendarClock className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                <span className="hidden sm:inline">
+                  {scheduleLater ? t("avatars.schedule", "Schedule interview") : t("avatars.start", "Start interview")}
+                </span>
+                <span className="sm:hidden">{scheduleLater ? t("avatars.scheduleShort", "Schedule") : t("avatars.startShort", "Start")}</span>
               </Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <AnimatePresence>{starting && selected && <StartingOverlay avatar={selected} />}</AnimatePresence>
+      <AnimatePresence>{starting && selected && !scheduleLater && <StartingOverlay avatar={selected} />}</AnimatePresence>
     </DashboardLayout>
   );
 }

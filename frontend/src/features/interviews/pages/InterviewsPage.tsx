@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
+  CalendarClock,
   CalendarDays,
+  GitCompareArrows,
+  PlayCircle,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -13,6 +16,7 @@ import {
   Sparkles,
   Timer,
   Trophy,
+  X,
 } from "lucide-react";
 
 import { PageHero } from "@/components/fx/PageHero";
@@ -62,6 +66,8 @@ export function InterviewsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("newest");
   const [query, setQuery] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const justScheduled = (useLocation().state as { scheduled?: string } | null)?.scheduled;
 
   useEffect(() => {
     void interviewsApi
@@ -70,6 +76,35 @@ export function InterviewsPage() {
       .catch((err) => setError(getApiErrorMessage(err, "Couldn't load your interviews.")))
       .finally(() => setLoading(false));
   }, []);
+
+  const upcoming = sessions
+    .filter((s) => s.status === "scheduled")
+    .sort((a, b) => new Date(a.scheduled_at ?? 0).getTime() - new Date(b.scheduled_at ?? 0).getTime());
+
+  const beginScheduled = async (id: string) => {
+    setBusyId(id);
+    setError(null);
+    try {
+      await interviewsApi.begin(id);
+      navigate(`/interviews/${id}/live`);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Couldn't start the interview. Please try again."));
+      setBusyId(null);
+    }
+  };
+
+  const cancelScheduled = async (id: string) => {
+    if (!window.confirm("Cancel this scheduled interview?")) return;
+    setBusyId(id);
+    try {
+      await interviewsApi.cancel(id);
+      setSessions((list) => list.filter((s) => s.id !== id));
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Couldn't cancel the interview."));
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const scores = sessions.map((s) => s.report_score).filter((s): s is number => s !== null);
   const stats = [
@@ -107,14 +142,66 @@ export function InterviewsPage() {
           title="Your interview history"
           subtitle="Review every session, its answers, and your scorecards."
           aside={
-            <Button variant="secondary" onClick={() => navigate("/avatars")}>
-              <Sparkles className="h-4 w-4" />
-              {t("dashboard.startInterview")}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {scores.length >= 2 && (
+                <Button
+                  variant="ghost"
+                  className="bg-white/10 text-white ring-1 ring-inset ring-white/25 hover:bg-white/20 dark:text-white dark:hover:bg-white/20"
+                  onClick={() => navigate("/interviews/compare")}
+                >
+                  <GitCompareArrows className="h-4 w-4" />
+                  {t("interviews.compare", "Compare")}
+                </Button>
+              )}
+              <Button variant="secondary" onClick={() => navigate("/avatars")}>
+                <Sparkles className="h-4 w-4" />
+                {t("dashboard.startInterview")}
+              </Button>
+            </div>
           }
         />
 
+        {justScheduled && <Alert tone="success">Interview scheduled. We'll remind you when it's close.</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
+
+        {upcoming.length > 0 && (
+          <Card className="p-4 sm:p-6">
+            <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+              <CalendarClock className="h-5 w-5 text-amber-500" />
+              {t("interviews.upcoming", "Upcoming")}
+            </h2>
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {upcoming.map((s) => {
+                const due = s.scheduled_at ? new Date(s.scheduled_at) : null;
+                const overdue = due !== null && due.getTime() < Date.now();
+                return (
+                  <li key={s.id} className="flex flex-wrap items-center gap-3 py-3">
+                    <Avatar src={s.avatar_image} name={s.avatar_name} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                        {s.avatar_name}
+                        {s.target_role && <span className="font-normal text-slate-500"> · {s.target_role}</span>}
+                      </p>
+                      <p className={cn("text-xs", overdue ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-slate-400")}>
+                        {due ? due.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "Any time"}
+                        {overdue && " · ready to start"}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => void cancelScheduled(s.id)} disabled={busyId !== null} aria-label="Cancel scheduled interview">
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" onClick={() => void beginScheduled(s.id)} isLoading={busyId === s.id} disabled={busyId !== null}>
+                        <PlayCircle className="h-4 w-4" />
+                        {busyId === s.id ? "Preparing…" : "Start now"}
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        )}
 
         {loading ? (
           <LoadingRegion label={t("common.loading", "Loading")} className="flex flex-col gap-6">

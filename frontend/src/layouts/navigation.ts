@@ -1,4 +1,4 @@
-import { LayoutDashboard, Mic, Settings, Sparkles, User, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Mic, Settings, ShieldCheck, Sparkles, User, type LucideIcon } from "lucide-react";
 import { matchPath } from "react-router-dom";
 
 export interface NavItem {
@@ -16,11 +16,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { to: "/settings", labelKey: "nav.settings", icon: Settings },
 ];
 
+/** What an admin (college placement officer) sees instead of the student sections. */
+export const ADMIN_NAV_ITEMS: readonly NavItem[] = [
+  { to: "/admin", labelKey: "nav.admin", icon: ShieldCheck },
+  { to: "/settings", labelKey: "nav.settings", icon: Settings },
+];
+
 /**
  * i18n key (and English fallback) for the page at `pathname`, used for the
  * top-bar heading and the browser tab title. Most specific patterns first.
  */
 const PAGE_TITLES: { pattern: string; key: string; fallback: string }[] = [
+  { pattern: "/interviews/compare", key: "shell.titles.compare", fallback: "Compare interviews" },
+  { pattern: "/admin", key: "nav.admin", fallback: "Student progress" },
   { pattern: "/interviews/:id/report", key: "shell.titles.report", fallback: "Interview report" },
   { pattern: "/interviews/:id/live", key: "shell.titles.live", fallback: "Live interview" },
   { pattern: "/interviews/:id", key: "shell.titles.interview", fallback: "Interview details" },

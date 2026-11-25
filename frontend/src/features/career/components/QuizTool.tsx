@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Brain, Check, RotateCcw, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Brain, Check, Clock, RotateCcw, Sparkles, X } from "lucide-react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -32,7 +32,7 @@ export function QuizTool() {
   useEffect(() => {
     careerApi
       .listQuizzes()
-      .then(({ data }) => setHistory(data.results))
+      .then(({ data }) => setHistory(data.results.filter((q) => q.category === "general")))
       .catch(() => {});
   }, []);
 
@@ -162,7 +162,7 @@ export function QuizTool() {
   );
 }
 
-function QuizRunner({ quiz, onSubmitted, onExit }: { quiz: Quiz; onSubmitted: (q: Quiz) => void; onExit: () => void }) {
+export function QuizRunner({ quiz, onSubmitted, onExit }: { quiz: Quiz; onSubmitted: (q: Quiz) => void; onExit: () => void }) {
   const total = quiz.questions.length;
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>(() => Array(total).fill(null));
@@ -170,6 +170,11 @@ function QuizRunner({ quiz, onSubmitted, onExit }: { quiz: Quiz; onSubmitted: (q
   const [error, setError] = useState<string | null>(null);
   const q = quiz.questions[index];
   const answered = answers.filter((a) => a !== null).length;
+  const timed = quiz.time_limit_seconds > 0;
+  const startedAt = useRef(Date.now());
+  const [remaining, setRemaining] = useState(quiz.time_limit_seconds);
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
 
   const choose = (option: number) => {
     setAnswers((a) => a.map((v, i) => (i === index ? option : v)));
@@ -177,17 +182,34 @@ function QuizRunner({ quiz, onSubmitted, onExit }: { quiz: Quiz; onSubmitted: (q
     if (index < total - 1) setTimeout(() => setIndex((i) => Math.min(i + 1, total - 1)), 250);
   };
 
-  const submit = async () => {
+  const submit = useCallback(async () => {
     setSubmitting(true);
     setError(null);
+    const taken = Math.round((Date.now() - startedAt.current) / 1000);
     try {
-      const { data } = await careerApi.submitQuiz(quiz.id, answers);
+      const { data } = await careerApi.submitQuiz(quiz.id, answersRef.current, timed ? taken : undefined);
       onSubmitted(data);
     } catch (err) {
       setError(getApiErrorMessage(err, "Couldn't submit. Please try again."));
       setSubmitting(false);
     }
-  };
+  }, [quiz.id, timed, onSubmitted]);
+
+  // Timed (aptitude) tests: count down and submit automatically at zero.
+  const autoSubmitted = useRef(false);
+  useEffect(() => {
+    if (!timed) return;
+    const id = window.setInterval(() => {
+      const left = Math.max(0, quiz.time_limit_seconds - Math.round((Date.now() - startedAt.current) / 1000));
+      setRemaining(left);
+      if (left === 0 && !autoSubmitted.current) {
+        autoSubmitted.current = true;
+        window.clearInterval(id);
+        void submit();
+      }
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [timed, quiz.time_limit_seconds, submit]);
 
   return (
     <Card>
@@ -200,9 +222,26 @@ function QuizRunner({ quiz, onSubmitted, onExit }: { quiz: Quiz; onSubmitted: (q
             Question {index + 1} of {total} · {answered} answered
           </p>
         </div>
-        <Button size="sm" variant="ghost" onClick={onExit}>
-          Exit
-        </Button>
+        <div className="flex items-center gap-2">
+          {timed && (
+            <span
+              role="timer"
+              aria-live={remaining <= 30 ? "assertive" : "off"}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-semibold tabular-nums",
+                remaining <= 30
+                  ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                  : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              )}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
+            </span>
+          )}
+          <Button size="sm" variant="ghost" onClick={onExit}>
+            Exit
+          </Button>
+        </div>
       </div>
 
       <div className="mb-5 flex gap-1">
@@ -284,7 +323,7 @@ function QuizRunner({ quiz, onSubmitted, onExit }: { quiz: Quiz; onSubmitted: (q
   );
 }
 
-function QuizResults({ quiz, onNew, onRetake }: { quiz: Quiz; onNew: () => void; onRetake: () => void }) {
+export function QuizResults({ quiz, onNew, onRetake }: { quiz: Quiz; onNew: () => void; onRetake: () => void }) {
   const score = Number(quiz.score ?? 0);
   const correct = quiz.questions.filter((q, i) => quiz.answers[i] === q.correct_index).length;
   const message =
@@ -299,6 +338,11 @@ function QuizResults({ quiz, onNew, onRetake }: { quiz: Quiz; onNew: () => void;
             {quiz.topic} · {quiz.difficulty}
           </p>
           <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">{message}</p>
+          {quiz.time_taken_seconds !== null && quiz.time_limit_seconds > 0 && (
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+              Time: {Math.floor(quiz.time_taken_seconds / 60)}m {quiz.time_taken_seconds % 60}s of {Math.round(quiz.time_limit_seconds / 60)} min
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={onRetake}>

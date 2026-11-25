@@ -4,6 +4,8 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string;
   readonly VITE_WS_BASE_URL: string;
   readonly VITE_DEFAULT_LANGUAGE: string;
+  /** Google OAuth Web client ID; the Google sign-in button is hidden when unset. */
+  readonly VITE_GOOGLE_CLIENT_ID?: string;
 }
 
 interface ImportMeta {

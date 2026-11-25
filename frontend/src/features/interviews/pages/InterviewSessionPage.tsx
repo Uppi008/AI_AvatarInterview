@@ -2,18 +2,25 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  Briefcase,
+  CalendarClock,
   CalendarDays,
   ChevronDown,
   Clock3,
   CornerDownRight,
   FileText,
   Languages,
+  Lightbulb,
   ListChecks,
   MessageSquareText,
+  PlayCircle,
   RefreshCw,
+  RotateCcw,
   ShieldAlert,
   Sparkles,
   Video,
+  Volume2,
+  X,
 } from "lucide-react";
 
 import { PageHero } from "@/components/fx/PageHero";
@@ -123,6 +130,14 @@ function QuestionItem({ question, index, isFollowUp }: { question: InterviewQues
               <p className="whitespace-pre-line rounded-lg bg-white p-3 text-sm leading-relaxed text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-800">
                 {answer.transcript_text || <span className="italic text-slate-400">No transcript was recorded.</span>}
               </p>
+              {answer.audio_file && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Volume2 className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" aria-hidden />
+                  <audio controls preload="none" src={answer.audio_file} className="h-9 w-full max-w-md">
+                    Your browser can't play this recording.
+                  </audio>
+                </div>
+              )}
             </div>
 
             {evaluation && (
@@ -147,6 +162,17 @@ function QuestionItem({ question, index, isFollowUp }: { question: InterviewQues
                   <div className="flex gap-3 rounded-lg bg-amber-50/70 p-3 ring-1 ring-inset ring-amber-200/70 dark:bg-amber-900/10 dark:ring-amber-800/40">
                     <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                     <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{evaluation.feedback_text}</p>
+                  </div>
+                )}
+                {evaluation.model_answer && (
+                  <div className="rounded-lg bg-green-50/70 p-3 ring-1 ring-inset ring-green-200/70 dark:bg-green-900/10 dark:ring-green-800/40">
+                    <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">
+                      <Lightbulb className="h-3.5 w-3.5" />
+                      A stronger answer
+                    </p>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                      {evaluation.model_answer}
+                    </p>
                   </div>
                 )}
               </>
@@ -174,6 +200,8 @@ export function InterviewSessionPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"begin" | "cancel" | "retake" | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -204,6 +232,28 @@ export function InterviewSessionPage() {
     }
   };
 
+  const runAction = async (kind: "begin" | "cancel" | "retake") => {
+    if (!session) return;
+    if (kind === "cancel" && !window.confirm("Cancel this scheduled interview?")) return;
+    setBusy(kind);
+    setActionError(null);
+    try {
+      if (kind === "begin") {
+        await interviewsApi.begin(session.id);
+        navigate(`/interviews/${session.id}/live`);
+      } else if (kind === "retake") {
+        const { data } = await interviewsApi.retake(session.id);
+        navigate(`/interviews/${data.id}/live`);
+      } else {
+        await interviewsApi.cancel(session.id);
+        navigate("/interviews");
+      }
+    } catch (err) {
+      setActionError(getApiErrorMessage(err, "Something went wrong. Please try again."));
+      setBusy(null);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -223,6 +273,7 @@ export function InterviewSessionPage() {
   }
 
   const isLive = session.status === "in_progress";
+  const isScheduled = session.status === "scheduled";
   const isFinished = session.status === "completed" || session.status === "terminated";
   const answeredCount = session.answered_count ?? session.questions.filter((q) => q.answer).length;
   const date = session.started_at ?? session.scheduled_at;
@@ -275,10 +326,18 @@ export function InterviewSessionPage() {
                 <Languages className="h-4 w-4" />
                 {LANGUAGE_LABEL[session.language] ?? session.language}
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <ListChecks className="h-4 w-4" />
-                {answeredCount}/{session.questions.length} answered
-              </span>
+              {!isScheduled && (
+                <span className="inline-flex items-center gap-1.5">
+                  <ListChecks className="h-4 w-4" />
+                  {answeredCount}/{session.questions.length} answered
+                </span>
+              )}
+              {(session.target_role || session.company) && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Briefcase className="h-4 w-4" />
+                  {[session.target_role, session.company].filter(Boolean).join(" at ")}
+                </span>
+              )}
               {session.violation_count > 0 && (
                 <span className="inline-flex items-center gap-1.5">
                   <ShieldAlert className="h-4 w-4" />
@@ -303,7 +362,35 @@ export function InterviewSessionPage() {
           </Alert>
         )}
 
+        {actionError && <Alert tone="error">{actionError}</Alert>}
+
         {/* What to do next */}
+        {isScheduled && (
+          <Card className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-4">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-orange-500/30">
+                <CalendarClock className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-semibold text-slate-900 dark:text-white">This interview is scheduled</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  You can start it any time. Questions are prepared when you start.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => void runAction("cancel")} isLoading={busy === "cancel"} disabled={busy !== null}>
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+              <Button onClick={() => void runAction("begin")} isLoading={busy === "begin"} disabled={busy !== null}>
+                <PlayCircle className="h-4 w-4" />
+                {busy === "begin" ? "Preparing questions…" : "Start now"}
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {isLive && (
           <Card className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div>
@@ -330,10 +417,16 @@ export function InterviewSessionPage() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => navigate(`/interviews/${session.id}/report`)}>
-              <FileText className="h-4 w-4" />
-              View full report
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => void runAction("retake")} isLoading={busy === "retake"} disabled={busy !== null}>
+                <RotateCcw className="h-4 w-4" />
+                {busy === "retake" ? "Preparing…" : "Retake"}
+              </Button>
+              <Button onClick={() => navigate(`/interviews/${session.id}/report`)}>
+                <FileText className="h-4 w-4" />
+                View full report
+              </Button>
+            </div>
           </Card>
         )}
 
@@ -392,7 +485,10 @@ export function InterviewSessionPage() {
             )}
           </div>
           {session.questions.length === 0 ? (
-            <EmptyState icon={ListChecks} title="No questions were generated for this session." />
+            <EmptyState
+              icon={ListChecks}
+              title={isScheduled ? "Questions are prepared when you start" : "No questions were generated for this session."}
+            />
           ) : (
             <ol className="space-y-3">
               {topLevel.map((q, i) => (

@@ -16,6 +16,9 @@ const CareerLabPage = lazy(() => import("@/features/career/pages/CareerLabPage")
 const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const NotFoundPage = lazy(() => import("@/features/errors/pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 const InterviewSessionPage = lazy(() => import("@/features/interviews/pages/InterviewSessionPage").then((m) => ({ default: m.InterviewSessionPage })));
+const CompareInterviewsPage = lazy(() => import("@/features/interviews/pages/CompareInterviewsPage").then((m) => ({ default: m.CompareInterviewsPage })));
+const AdminStudentsPage = lazy(() => import("@/features/admin/pages/AdminStudentsPage").then((m) => ({ default: m.AdminStudentsPage })));
+const SharedReportPage = lazy(() => import("@/features/reports/pages/SharedReportPage").then((m) => ({ default: m.SharedReportPage })));
 const InterviewsPage = lazy(() => import("@/features/interviews/pages/InterviewsPage").then((m) => ({ default: m.InterviewsPage })));
 const LiveInterviewPage = lazy(() => import("@/features/interviews/pages/LiveInterviewPage").then((m) => ({ default: m.LiveInterviewPage })));
 const ReportPage = lazy(() => import("@/features/reports/pages/ReportPage").then((m) => ({ default: m.ReportPage })));
@@ -51,6 +54,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/shared/report/:token" element={<SharedReportPage />} />
 
           <Route
             path="/dashboard"
@@ -73,6 +77,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <InterviewsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/interviews/compare"
+            element={
+              <ProtectedRoute>
+                <CompareInterviewsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminStudentsPage />
               </ProtectedRoute>
             }
           />

@@ -11,7 +11,9 @@
     "password": "Password",
     "fullName": "Full name",
     "continue": "Continue",
-    "or": "or"
+    "or": "or",
+    "optional": "optional",
+    "close": "Close"
   },
   "auth": {
     "heroTitle": "Practice interviews with an AI that actually listens.",
@@ -40,7 +42,8 @@
     "verifySuccess": "Your email has been verified.",
     "verifyFailure": "That verification link is invalid or has expired.",
     "backToLogin": "Back to login",
-    "listeningPlaceholder": "Listening for your answer..."
+    "listeningPlaceholder": "Listening for your answer...",
+    "or": "or"
   },
   "dashboard": {
     "welcomeBack": "Welcome back, {{name}}",
@@ -95,7 +98,11 @@
     "goodAfternoon": "Good afternoon",
     "goodEvening": "Good evening",
     "noScore": "No score",
-    "avgScore": "Avg score"
+    "avgScore": "Avg score",
+    "skillProgress": "Skill progress",
+    "skillProgressHint": "How each skill has changed across your interviews",
+    "showTable": "Show table",
+    "showChart": "Show chart"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -103,7 +110,8 @@
     "resume": "Resume",
     "settings": "Settings",
     "logout": "Log out",
-    "careerLab": "AI Career Lab"
+    "careerLab": "AI Career Lab",
+    "admin": "Student progress"
   },
   "shell": {
     "search": "Search or jump to…",
@@ -120,7 +128,8 @@
     "titles": {
       "interview": "Interview details",
       "report": "Interview report",
-      "live": "Live interview"
+      "live": "Live interview",
+      "compare": "Compare interviews"
     }
   },
   "notFound": {
@@ -141,7 +150,22 @@
     "customTitle": "Your custom avatar",
     "customSubtitle": "Upload a photo to build a personalized avatar. This doesn't change who interviews you above — it's a preview of interviewing with your own face.",
     "uploadPhoto": "Upload photo",
-    "none": "No avatars match this filter."
+    "none": "No avatars match this filter.",
+    "targetJob": "What are you preparing for?",
+    "targetJobHint": "Questions will be tailored to this role and company.",
+    "targetRole": "Role",
+    "company": "Company",
+    "addJobDescription": "Paste the job description",
+    "jobDescription": "Job description",
+    "jobDescriptionPlaceholder": "Paste the job post here for the most relevant questions",
+    "roundType": "Round",
+    "questionCount": "Questions",
+    "scheduleLater": "Schedule for later",
+    "scheduleTime": "Interview date and time",
+    "schedule": "Schedule interview",
+    "scheduleShort": "Schedule",
+    "start": "Start interview",
+    "startShort": "Start"
   },
   "report": {
     "notReady": "Your report is still being generated. Check back in a minute.",
@@ -167,7 +191,9 @@
     "recommendedProjects": "Recommended projects",
     "hiringRecommendation": "Hiring recommendation",
     "downloadPdf": "Download PDF",
-    "backToDashboard": "Back to dashboard"
+    "backToDashboard": "Back to dashboard",
+    "retake": "Retake interview",
+    "preparing": "Preparing…"
   },
   "career": {
     "heroTitle": "Prepare smarter between interviews",
@@ -176,7 +202,9 @@
     "tabCoach": "Answer Coach",
     "tabPlan": "Study Plan",
     "tabQuiz": "Skill Quiz",
-    "tabCode": "Code Review"
+    "tabCode": "Code Review",
+    "tabAptitude": "Aptitude",
+    "tabGd": "Group Discussion"
   },
   "resume": {
     "activeHint": "Used for your next interview",
@@ -225,5 +253,57 @@
     "uploading": "Uploading {{name}}",
     "view": "View",
     "viewFile": "View file"
+  },
+  "interviews": {
+    "compare": "Compare",
+    "upcoming": "Upcoming"
+  },
+  "share": {
+    "share": "Share",
+    "title": "Share your result",
+    "privacy": "Anyone with the link sees your scores, strengths and tips with your first name only. Your answers and email stay private.",
+    "create": "Create share link",
+    "copy": "Copy",
+    "copied": "Copied",
+    "linkedin": "Post on LinkedIn",
+    "revoke": "Turn off link",
+    "missing": "This link isn't available",
+    "missingHint": "It may have been turned off by its owner."
+  },
+  "compare": {
+    "title": "How much have you improved?",
+    "subtitle": "Pick any two interviews to see every score side by side.",
+    "before": "Before",
+    "after": "After",
+    "overallChange": "Overall change",
+    "biggestGain": "Biggest gain",
+    "needsWork": "Needs work",
+    "needTwo": "You need at least two scored interviews to compare"
+  },
+  "daily": {
+    "title": "Question of the day",
+    "subtitle": "Two minutes a day keeps you interview-ready",
+    "placeholder": "Type or speak your answer…",
+    "submit": "Get my score",
+    "scoring": "Scoring…",
+    "done": "Done for today! Come back tomorrow for a new question.",
+    "fullFeedback": "See full feedback in Answer Coach",
+    "tooShort": "Write at least a couple of sentences (20+ characters)."
+  },
+  "engagement": {
+    "streakTitle": "Your streak",
+    "doneToday": "You've practiced today. Nice!",
+    "keepItAlive": "Practice today to keep your streak alive",
+    "startStreak": "Practice today to start a streak",
+    "longest": "Longest: {{count}} days",
+    "badges": "Badges",
+    "showAll": "See all",
+    "showLess": "Show less"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "label": "Notifications",
+    "markAll": "Mark all read",
+    "empty": "You're all caught up."
   }
 }

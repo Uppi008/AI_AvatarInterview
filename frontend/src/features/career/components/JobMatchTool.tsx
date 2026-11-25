@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, CheckCircle2, Copy, FileSearch, Lightbulb, Mail, MessageSquareText, RefreshCw, Sparkles, XCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Check, CheckCircle2, Copy, FileSearch, Lightbulb, Mail, MessageSquareText, Mic, RefreshCw, Sparkles, XCircle } from "lucide-react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -148,6 +149,11 @@ function JobMatchResult({
   onUpdate: (match: JobMatch) => void;
 }) {
   const score = Number(match.match_score);
+  const navigate = useNavigate();
+  const practiceInterview = () =>
+    navigate("/avatars", {
+      state: { target_role: match.job_title, company: match.company, job_description: match.job_description },
+    });
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-5">
       <Card className="flex flex-col items-center gap-5 sm:flex-row">
@@ -163,9 +169,15 @@ function JobMatchResult({
             </p>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={onBack}>
-          New match
-        </Button>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button size="sm" onClick={practiceInterview}>
+            <Mic className="h-4 w-4" />
+            Practice interview for this job
+          </Button>
+          <Button variant="outline" size="sm" onClick={onBack}>
+            New match
+          </Button>
+        </div>
       </Card>
 
       <div className="grid gap-5 md:grid-cols-2">

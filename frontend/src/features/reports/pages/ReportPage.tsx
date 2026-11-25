@@ -10,8 +10,10 @@ import {
   Download,
   FileWarning,
   FolderGit2,
+  GitCompareArrows,
   GraduationCap,
   Lightbulb,
+  RotateCcw,
   Sparkles,
 } from "lucide-react";
 import {
@@ -25,16 +27,19 @@ import {
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
 import { useTheme } from "@/hooks/useTheme";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
+import { getApiErrorMessage } from "@/services/apiClient";
 import { toneDot, toneText, type ToneKey } from "@/styles/tone";
 
 import { interviewsApi } from "../../interviews/api";
 import type { InterviewSessionDetail } from "../../interviews/types";
 import { reportsApi } from "../api";
+import { ShareReportPanel } from "../components/ShareReportPanel";
 import type { HiringRecommendation, InterviewReport } from "../types";
 
 const HIRING_BADGE_TONE: Record<Exclude<HiringRecommendation, "">, "green" | "brand" | "amber" | "red"> = {
@@ -88,6 +93,21 @@ export function ReportPage() {
   const [session, setSession] = useState<InterviewSessionDetail | null>(null);
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retaking, setRetaking] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const retake = async () => {
+    if (!session) return;
+    setRetaking(true);
+    setActionError(null);
+    try {
+      const { data } = await interviewsApi.retake(session.id);
+      navigate(`/interviews/${data.id}/live`);
+    } catch (err) {
+      setActionError(getApiErrorMessage(err, "Couldn't start the retake. Please try again."));
+      setRetaking(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -157,13 +177,29 @@ export function ReportPage() {
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t("report.overallScore")}</p>
             </div>
             <div className="flex-1" />
-            {report.pdf_file && (
-              <Button variant="outline" size="sm" onClick={() => window.open(report.pdf_file!, "_blank")}>
-                <Download className="h-4 w-4" />
-                {t("report.downloadPdf")}
+            <div className="flex flex-wrap items-start justify-center gap-2 sm:justify-end">
+              <Button size="sm" onClick={() => void retake()} isLoading={retaking}>
+                <RotateCcw className="h-4 w-4" />
+                {retaking ? t("report.preparing", "Preparing…") : t("report.retake", "Retake interview")}
               </Button>
-            )}
+              <Button variant="outline" size="sm" onClick={() => navigate(`/interviews/compare?b=${report.id}`)}>
+                <GitCompareArrows className="h-4 w-4" />
+                {t("interviews.compare", "Compare")}
+              </Button>
+              {report.pdf_file && (
+                <Button variant="outline" size="sm" onClick={() => window.open(report.pdf_file!, "_blank")}>
+                  <Download className="h-4 w-4" />
+                  {t("report.downloadPdf")}
+                </Button>
+              )}
+              <ShareReportPanel report={report} onChange={setReport} />
+            </div>
           </div>
+          {actionError && (
+            <Alert tone="error" className="mt-4">
+              {actionError}
+            </Alert>
+          )}
 
           {report.spoken_summary && (
             <blockquote className="mt-6 rounded-xl border-l-4 border-brand-500 bg-brand-50 p-4 text-sm italic text-slate-700 dark:bg-brand-950/30 dark:text-slate-300">

@@ -7,6 +7,7 @@ import { Bot, LogOut, Menu, Plus, Search, X } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { setSidebarOpen, toggleSidebar } from "@/features/ui/uiSlice";
 import { CommandPalette } from "@/components/CommandPalette";
+import { NotificationBell } from "@/components/NotificationBell";
 import { AmbientBackground } from "@/components/fx/AmbientBackground";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -15,7 +16,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/utils/cn";
 
-import { APP_NAME, NAV_ITEMS, pageTitleFor } from "./navigation";
+import { ADMIN_NAV_ITEMS, APP_NAME, NAV_ITEMS, pageTitleFor } from "./navigation";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -34,6 +35,8 @@ export function DashboardLayout({ children, calm = false }: DashboardLayoutProps
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const isAdmin = user?.role === "admin";
+  const navItems = isAdmin ? ADMIN_NAV_ITEMS : NAV_ITEMS;
   const sidebarRef = useRef<HTMLElement>(null);
   const [isDesktop, setIsDesktop] = useState(() => window.matchMedia("(min-width: 1024px)").matches);
 
@@ -139,15 +142,17 @@ export function DashboardLayout({ children, calm = false }: DashboardLayoutProps
         </div>
 
         {/* Primary action: always one click away. */}
-        <div className="px-3 pb-3 pt-1">
-          <Button className="w-full" onClick={() => navigate("/avatars")}>
-            <Plus className="h-4 w-4" />
-            {t("shell.newInterview", "New interview")}
-          </Button>
-        </div>
+        {!isAdmin && (
+          <div className="px-3 pb-3 pt-1">
+            <Button className="w-full" onClick={() => navigate("/avatars")}>
+              <Plus className="h-4 w-4" />
+              {t("shell.newInterview", "New interview")}
+            </Button>
+          </div>
+        )}
 
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-1">
-          {NAV_ITEMS.map(({ to, labelKey, icon: Icon }) => (
+          {navItems.map(({ to, labelKey, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -227,6 +232,7 @@ export function DashboardLayout({ children, calm = false }: DashboardLayoutProps
                 {isMac ? "⌘K" : "Ctrl K"}
               </kbd>
             </button>
+            <NotificationBell />
             <LanguageSwitcher />
             <ThemeToggle />
           </div>

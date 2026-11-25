@@ -53,6 +53,20 @@ export const register = createAsyncThunk<User, RegisterPayload, { rejectValue: s
   }
 );
 
+export const googleLogin = createAsyncThunk<User, string, { rejectValue: string }>(
+  "auth/googleLogin",
+  async (idToken, { rejectWithValue }) => {
+    try {
+      await authApi.wakeUp();
+      const { data } = await authApi.googleLogin(idToken);
+      tokenStorage.set(data.access, data.refresh);
+      return data.user;
+    } catch (error) {
+      return rejectWithValue(getApiErrorMessage(error, "Google sign-in failed. Please try again."));
+    }
+  }
+);
+
 export const fetchCurrentUser = createAsyncThunk<User, void, { rejectValue: string }>(
   "auth/fetchCurrentUser",
   async (_, { rejectWithValue }) => {
@@ -103,6 +117,18 @@ const authSlice = createSlice({
       .addCase(register.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload ?? "Registration failed.";
+      })
+      .addCase(googleLogin.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(googleLogin.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.user = action.payload;
+      })
+      .addCase(googleLogin.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload ?? "Google sign-in failed.";
       })
       .addCase(fetchCurrentUser.fulfilled, (state, action) => {
         state.user = action.payload;

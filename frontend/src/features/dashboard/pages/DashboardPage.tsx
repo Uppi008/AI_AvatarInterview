@@ -1,16 +1,21 @@
 import { useTranslation } from "react-i18next";
+import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle2, Clock, FileText, Trophy } from "lucide-react";
 
 import { Alert } from "@/components/ui/Alert";
 import { Card } from "@/components/ui/Card";
 import { LoadingRegion, Skeleton, SkeletonRow } from "@/components/ui/Skeleton";
+import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 
 import { AiSuggestions } from "../components/AiSuggestions";
+import { DailyQuestionCard } from "../components/DailyQuestionCard";
 import { PerformanceChart } from "../components/PerformanceChart";
 import { RecentInterviews } from "../components/RecentInterviews";
+import { SkillProgressChart } from "../components/SkillProgressChart";
 import { StatCard } from "../components/StatCard";
+import { StreakBadgesCard } from "../components/StreakBadgesCard";
 import { WelcomeCard } from "../components/WelcomeCard";
 import { useDashboardData } from "../useDashboardData";
 
@@ -24,7 +29,14 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
 };
 
+/** Admins (placement officers) have their own home page. */
 export function DashboardPage() {
+  const { user } = useAuth();
+  if (user?.role === "admin") return <Navigate to="/admin" replace />;
+  return <StudentDashboard />;
+}
+
+function StudentDashboard() {
   const { t } = useTranslation();
   const { sessions, reports, activeResume, loading, error } = useDashboardData();
 
@@ -166,6 +178,21 @@ export function DashboardPage() {
             <AiSuggestions latestReport={latestReport} completedCount={completedCount} hasResume={activeResume !== null} />
           </motion.div>
         </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <motion.div variants={itemVariants} className="h-full lg:col-span-2">
+            <DailyQuestionCard />
+          </motion.div>
+          <motion.div variants={itemVariants} className="h-full">
+            <StreakBadgesCard />
+          </motion.div>
+        </div>
+
+        {reports.length >= 2 && (
+          <motion.div variants={itemVariants}>
+            <SkillProgressChart reports={reports} />
+          </motion.div>
+        )}
 
         <motion.div variants={itemVariants}>
           <RecentInterviews sessions={sessions} scores={scoresBySession} />

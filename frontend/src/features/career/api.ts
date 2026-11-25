@@ -1,7 +1,7 @@
 import { apiClient } from "@/services/apiClient";
 import type { PaginatedResponse } from "@/types/api";
 
-import type { AnswerPractice, CodeLanguage, CodeReview, JobMatch, Quiz, StudyPlan } from "./types";
+import type { AnswerPractice, CodeLanguage, CodeReview, GroupDiscussion, JobMatch, Quiz, QuizCategory, StudyPlan } from "./types";
 
 // LLM calls on the free-tier backend can take a while (plus a cold start).
 const AI_TIMEOUT = 120_000;
@@ -27,14 +27,23 @@ export const careerApi = {
   deletePlan: (id: string) => apiClient.delete(`/career/study-plans/${id}/`),
 
   listQuizzes: () => apiClient.get<PaginatedResponse<Quiz>>("/career/quizzes/"),
-  createQuiz: (body: { topic: string; difficulty: Quiz["difficulty"]; count: number }) =>
+  createQuiz: (body: { topic?: string; difficulty: Quiz["difficulty"]; count: number; category?: QuizCategory }) =>
     apiClient.post<Quiz>("/career/quizzes/", body, { timeout: AI_TIMEOUT }),
-  submitQuiz: (id: string, answers: (number | null)[]) =>
-    apiClient.post<Quiz>(`/career/quizzes/${id}/submit/`, { answers }),
+  submitQuiz: (id: string, answers: (number | null)[], time_taken_seconds?: number) =>
+    apiClient.post<Quiz>(`/career/quizzes/${id}/submit/`, { answers, time_taken_seconds }),
   deleteQuiz: (id: string) => apiClient.delete(`/career/quizzes/${id}/`),
 
   listCodeReviews: () => apiClient.get<PaginatedResponse<CodeReview>>("/career/code-reviews/"),
   createCodeReview: (body: { problem: string; code: string; code_language: CodeLanguage }) =>
     apiClient.post<CodeReview>("/career/code-reviews/", body, { timeout: AI_TIMEOUT }),
   deleteCodeReview: (id: string) => apiClient.delete(`/career/code-reviews/${id}/`),
+
+  listDiscussions: () => apiClient.get<PaginatedResponse<GroupDiscussion>>("/career/group-discussions/"),
+  createDiscussion: (body: { topic?: string }) =>
+    apiClient.post<GroupDiscussion>("/career/group-discussions/", body, { timeout: AI_TIMEOUT }),
+  respondDiscussion: (id: string, message: string) =>
+    apiClient.post<GroupDiscussion>(`/career/group-discussions/${id}/respond/`, { message }, { timeout: AI_TIMEOUT }),
+  finishDiscussion: (id: string) =>
+    apiClient.post<GroupDiscussion>(`/career/group-discussions/${id}/finish/`, null, { timeout: AI_TIMEOUT }),
+  deleteDiscussion: (id: string) => apiClient.delete(`/career/group-discussions/${id}/`),
 };

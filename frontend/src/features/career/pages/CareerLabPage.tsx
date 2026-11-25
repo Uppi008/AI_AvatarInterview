@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
-import { Brain, CalendarDays, Code2, FileSearch, Mic2, Sparkles } from "lucide-react";
+import { Brain, CalendarDays, Code2, FileSearch, Mic2, Sparkles, Timer, Users } from "lucide-react";
 
 import { PageHero } from "@/components/fx/PageHero";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { cn } from "@/utils/cn";
 
 import { AnswerCoachTool } from "../components/AnswerCoachTool";
+import { AptitudeTool } from "../components/AptitudeTool";
 import { CodeReviewTool } from "../components/CodeReviewTool";
+import { GroupDiscussionTool } from "../components/GroupDiscussionTool";
 import { JobMatchTool } from "../components/JobMatchTool";
 import { QuizTool } from "../components/QuizTool";
 import { StudyPlanTool } from "../components/StudyPlanTool";
@@ -17,6 +19,8 @@ const TABS = [
   { id: "job-match", labelKey: "career.tabJobMatch", label: "Job Match", hint: "Resume vs job post", icon: FileSearch },
   { id: "coach", labelKey: "career.tabCoach", label: "Answer Coach", hint: "Practice & rewrite", icon: Mic2 },
   { id: "quiz", labelKey: "career.tabQuiz", label: "Skill Quiz", hint: "Test any topic", icon: Brain },
+  { id: "aptitude", labelKey: "career.tabAptitude", label: "Aptitude", hint: "Timed placement test", icon: Timer },
+  { id: "gd", labelKey: "career.tabGd", label: "Group Discussion", hint: "Debate with AI peers", icon: Users },
   { id: "code", labelKey: "career.tabCode", label: "Code Review", hint: "Coding round", icon: Code2 },
   { id: "plan", labelKey: "career.tabPlan", label: "Study Plan", hint: "Day-by-day prep", icon: CalendarDays },
 ] as const;
@@ -66,7 +70,7 @@ export function CareerLabPage() {
         <div
           ref={tabsRef}
           role="tablist"
-          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 lg:grid lg:grid-cols-5 lg:overflow-visible lg:rounded-2xl lg:bg-slate-100/80 lg:p-1.5 lg:pb-1.5 dark:lg:bg-slate-800/60"
+          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 2xl:grid 2xl:grid-cols-7 2xl:overflow-visible 2xl:rounded-2xl 2xl:bg-slate-100/80 2xl:p-1.5 2xl:pb-1.5 dark:2xl:bg-slate-800/60"
         >
           {TABS.map(({ id, labelKey, label, hint, icon: Icon }) => (
             <button
@@ -76,10 +80,10 @@ export function CareerLabPage() {
               aria-selected={tab === id}
               onClick={() => goTo(id)}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2.5 text-left transition lg:gap-3 lg:px-3",
+                "flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2.5 text-left transition 2xl:gap-3 2xl:px-3",
                 tab === id
-                  ? "bg-white text-brand-700 shadow-sm ring-1 ring-brand-200 lg:ring-0 dark:bg-slate-900 dark:text-brand-300 dark:ring-brand-800"
-                  : "bg-slate-100/80 text-slate-600 hover:text-slate-900 lg:bg-transparent dark:bg-slate-800/60 dark:text-slate-400 dark:hover:text-white lg:dark:bg-transparent"
+                  ? "bg-white text-brand-700 shadow-sm ring-1 ring-brand-200 2xl:ring-0 dark:bg-slate-900 dark:text-brand-300 dark:ring-brand-800"
+                  : "bg-slate-100/80 text-slate-600 hover:text-slate-900 2xl:bg-transparent dark:bg-slate-800/60 dark:text-slate-400 dark:hover:text-white 2xl:dark:bg-transparent"
               )}
             >
               <Icon className="h-5 w-5 shrink-0" />
@@ -94,6 +98,8 @@ export function CareerLabPage() {
         {tab === "job-match" && <JobMatchTool onPractice={practice} />}
         {tab === "coach" && <AnswerCoachTool initialQuestion={practiceQuestion} />}
         {tab === "quiz" && <QuizTool />}
+        {tab === "aptitude" && <AptitudeTool />}
+        {tab === "gd" && <GroupDiscussionTool />}
         {tab === "code" && <CodeReviewTool onPractice={practice} />}
         {tab === "plan" && <StudyPlanTool onPractice={practice} />}
       </div>

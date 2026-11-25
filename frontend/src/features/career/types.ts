@@ -88,11 +88,17 @@ export interface QuizQuestion {
   explanation?: string;
 }
 
+export type QuizCategory = "general" | "quantitative" | "logical" | "verbal" | "mixed";
+
 export interface Quiz {
   id: string;
   topic: string;
   difficulty: "easy" | "medium" | "hard";
   language: Language;
+  category: QuizCategory;
+  /** 0 = untimed. */
+  time_limit_seconds: number;
+  time_taken_seconds: number | null;
   questions: QuizQuestion[];
   answers: (number | null)[];
   score: string | null;
@@ -120,5 +126,36 @@ export interface CodeReview {
   improvements: string[];
   improved_code: string;
   follow_up_question: string;
+  created_at: string;
+}
+
+export interface GDParticipant {
+  name: string;
+  stance: string;
+}
+
+export interface GDLine {
+  speaker: string;
+  text: string;
+  is_user: boolean;
+}
+
+export interface GroupDiscussion {
+  id: string;
+  topic: string;
+  language: Language;
+  participants: GDParticipant[];
+  transcript: GDLine[];
+  overall_score: string | null;
+  content_score: string | null;
+  communication_score: string | null;
+  leadership_score: string | null;
+  listening_score: string | null;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  finished_at: string | null;
+  user_turns: number;
+  max_user_turns: number;
   created_at: string;
 }

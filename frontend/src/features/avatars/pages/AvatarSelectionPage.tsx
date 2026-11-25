@@ -24,7 +24,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Spinner } from "@/components/ui/Spinner";
+import { LoadingRegion, Skeleton } from "@/components/ui/Skeleton";
 import { interviewsApi } from "@/features/interviews/api";
 import type { InterviewPersonality } from "@/features/interviews/types";
 import { resumeApi } from "@/features/resume/api";
@@ -309,9 +309,20 @@ export function AvatarSelectionPage() {
         {error && <Alert tone="error">{error}</Alert>}
 
         {loading ? (
-          <div className="flex h-40 items-center justify-center">
-            <Spinner />
-          </div>
+          <LoadingRegion
+            label={t("common.loading", "Loading")}
+            className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-5"
+          >
+            {Array.from({ length: 10 }, (_, i) => (
+              <Card key={i} className="overflow-hidden p-0">
+                <Skeleton className="aspect-[4/5] w-full rounded-none" />
+                <div className="space-y-2 p-4">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </Card>
+            ))}
+          </LoadingRegion>
         ) : visible.length === 0 ? (
           <Card>
             <EmptyState icon={Users} title={t("avatars.none")} />

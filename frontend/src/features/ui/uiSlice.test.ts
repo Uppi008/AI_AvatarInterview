@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import uiReducer, { setTheme, toggleSidebar, toggleTheme } from "./uiSlice";
+import uiReducer, { setSidebarOpen, setTheme, toggleSidebar, toggleTheme } from "./uiSlice";
 
 describe("uiSlice", () => {
   beforeEach(() => {
@@ -37,5 +37,13 @@ describe("uiSlice", () => {
 
     expect(state.sidebarOpen).toBe(true);
     expect(uiReducer(state, toggleSidebar()).sidebarOpen).toBe(false);
+  });
+
+  it("setSidebarOpen sets an explicit value", () => {
+    const open = uiReducer(initialState, setSidebarOpen(true));
+
+    expect(open.sidebarOpen).toBe(true);
+    expect(uiReducer(open, setSidebarOpen(false)).sidebarOpen).toBe(false);
+    expect(uiReducer(initialState, setSidebarOpen(false)).sidebarOpen).toBe(false);
   });
 });

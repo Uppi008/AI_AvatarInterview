@@ -3,7 +3,8 @@ import { motion } from "framer-motion";
 import { CheckCircle2, Clock, FileText, Trophy } from "lucide-react";
 
 import { Alert } from "@/components/ui/Alert";
-import { Spinner } from "@/components/ui/Spinner";
+import { Card } from "@/components/ui/Card";
+import { LoadingRegion, Skeleton, SkeletonRow } from "@/components/ui/Skeleton";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 
 import { AiSuggestions } from "../components/AiSuggestions";
@@ -60,9 +61,37 @@ export function DashboardPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex h-64 items-center justify-center">
-          <Spinner />
-        </div>
+        <LoadingRegion label={t("common.loading", "Loading")} className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+          <Skeleton className="h-48 rounded-3xl sm:h-52" />
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <Card key={i} className="flex flex-col gap-4 p-4 sm:p-6">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-6 w-2/3" />
+                </div>
+              </Card>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <Skeleton className="mb-6 h-4 w-40" />
+              <Skeleton className="h-56 w-full" />
+            </Card>
+            <Card className="space-y-3">
+              <Skeleton className="mb-3 h-4 w-32" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </Card>
+          </div>
+          <Card className="p-4 sm:p-6">
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </Card>
+        </LoadingRegion>
       </DashboardLayout>
     );
   }

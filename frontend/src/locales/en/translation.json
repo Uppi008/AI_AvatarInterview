@@ -105,6 +105,30 @@
     "logout": "Log out",
     "careerLab": "AI Career Lab"
   },
+  "shell": {
+    "search": "Search or jump to…",
+    "newInterview": "New interview",
+    "skipToContent": "Skip to content",
+    "noResults": "No matches",
+    "toggleTheme": "Toggle dark mode",
+    "pages": "Pages",
+    "actions": "Actions",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "mainNavigation": "Main navigation",
+    "paletteHint": "↑↓ to move · Enter to open · Esc to close",
+    "titles": {
+      "interview": "Interview details",
+      "report": "Interview report",
+      "live": "Live interview"
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you're looking for doesn't exist or has moved.",
+    "back": "Go back",
+    "home": "Back to dashboard"
+  },
   "avatars": {
     "title": "Choose your interviewer",
     "subtitle": "Pick an AI avatar and language, and we'll start your interview right away.",

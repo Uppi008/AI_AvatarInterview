@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Spinner } from "@/components/ui/Spinner";
+import { LoadingRegion, Skeleton, SkeletonRow } from "@/components/ui/Skeleton";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { getApiErrorMessage } from "@/services/apiClient";
 import { cn } from "@/utils/cn";
@@ -117,9 +117,25 @@ export function InterviewsPage() {
         {error && <Alert tone="error">{error}</Alert>}
 
         {loading ? (
-          <div className="flex h-40 items-center justify-center">
-            <Spinner />
-          </div>
+          <LoadingRegion label={t("common.loading", "Loading")} className="flex flex-col gap-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+              {Array.from({ length: 4 }, (_, i) => (
+                <Card key={i} className="flex items-center gap-3 p-4 sm:p-5">
+                  <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3 w-2/3" />
+                    <Skeleton className="h-5 w-1/3" />
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <Card className="p-4 sm:p-6">
+              <Skeleton className="mb-4 h-9 w-full max-w-md rounded-xl" />
+              {Array.from({ length: 5 }, (_, i) => (
+                <SkeletonRow key={i} />
+              ))}
+            </Card>
+          </LoadingRegion>
         ) : sessions.length === 0 ? (
           <Card>
             <EmptyState

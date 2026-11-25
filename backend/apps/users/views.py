@@ -1,4 +1,5 @@
 from rest_framework import permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
@@ -128,8 +129,10 @@ class GoogleLoginView(APIView):
         serializer.is_valid(raise_exception=True)
         try:
             user = services.google_login(id_token_str=serializer.validated_data["id_token"])
-        except ValueError:
-            return Response({"detail": "Invalid Google token."}, status=status.HTTP_400_BAD_REQUEST)
+        except services.GoogleLoginError as exc:
+            # Raised (not returned) so it goes through the standard error
+            # envelope the frontend reads, and the real reason reaches the user.
+            raise ValidationError({"detail": str(exc)}) from None
         refresh = RefreshToken.for_user(user)
         return Response(
             {"access": str(refresh.access_token), "refresh": str(refresh), "user": UserSerializer(user).data}

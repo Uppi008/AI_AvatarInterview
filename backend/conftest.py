@@ -12,6 +12,16 @@ from tests.factories import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    """Throttle counters live in the cache; without this, tests that hit a
+    throttled endpoint (e.g. auth, 10/min) push later tests into 429s."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+
+
 @pytest.fixture
 def user(db):
     return UserFactory()

@@ -142,6 +142,9 @@ export function getApiErrorMessage(error: unknown, fallback = "Something went wr
     }
     const detail = payload?.error?.detail;
     if (typeof detail === "string") return detail;
+    // Some endpoints answer with plain DRF `{"detail": "..."}` instead of the envelope.
+    const plainDetail = (error.response.data as { detail?: unknown } | undefined)?.detail;
+    if (typeof plainDetail === "string") return plainDetail;
   }
   return fallback;
 }

@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import timedelta
 
@@ -5,6 +6,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from .models import EmailVerificationToken, PasswordResetToken, SocialAccount, StudentProfile, User
+
+logger = logging.getLogger(__name__)
 
 
 def register_user(*, email: str, full_name: str, password: str, preferred_language: str = User.Language.ENGLISH) -> User:
@@ -72,19 +75,57 @@ def change_password(*, user: User, old_password: str, new_password: str) -> None
     user.save(update_fields=["password"])
 
 
+class GoogleLoginError(ValueError):
+    """A Google sign-in that can't be completed; the message is safe to show."""
+
+
+# Google's servers and the user's PC clock are rarely in perfect sync; without
+# some leeway a fresh token is rejected as "used too early".
+GOOGLE_CLOCK_SKEW_SECONDS = 10
+
+
 def google_login(*, id_token_str: str) -> User:
     """Verifies a Google Sign-In ID token and returns the matching (or newly
-    created) local user. Raises ValueError on an invalid/expired token.
+    created) local user. Raises GoogleLoginError with a user-facing reason.
     """
+    from google.auth import exceptions as google_exceptions
     from google.auth.transport import requests as google_requests
     from google.oauth2 import id_token as google_id_token
 
+    if not settings.GOOGLE_OAUTH_CLIENT_ID:
+        raise GoogleLoginError(
+            "Google sign-in isn't set up on the server yet (GOOGLE_OAUTH_CLIENT_ID is empty). "
+            "Set it in .env and restart the backend."
+        )
+
     try:
         payload = google_id_token.verify_oauth2_token(
-            id_token_str, google_requests.Request(), settings.GOOGLE_OAUTH_CLIENT_ID
+            id_token_str,
+            google_requests.Request(),
+            settings.GOOGLE_OAUTH_CLIENT_ID,
+            clock_skew_in_seconds=GOOGLE_CLOCK_SKEW_SECONDS,
         )
-    except ValueError:
-        raise
+    except google_exceptions.TransportError as exc:
+        logger.warning("Google sign-in: couldn't fetch Google's certificates: %s", exc)
+        raise GoogleLoginError("Couldn't reach Google to verify your sign-in. Check your internet and try again.") from exc
+    except ValueError as exc:
+        reason = str(exc)
+        logger.warning("Google sign-in rejected: %s", reason)
+        lowered = reason.lower()
+        if "audience" in lowered or "recipient" in lowered:
+            raise GoogleLoginError(
+                "This Google sign-in was made for a different app. The frontend VITE_GOOGLE_CLIENT_ID and "
+                "backend GOOGLE_OAUTH_CLIENT_ID must be the same value (restart both after changing)."
+            ) from exc
+        if "too early" in lowered or "expired" in lowered or "too late" in lowered:
+            raise GoogleLoginError(
+                "Your computer's clock seems to be off, so Google's sign-in looked expired. "
+                "Set the date and time to automatic and try again."
+            ) from exc
+        raise GoogleLoginError("Google sign-in couldn't be verified. Please try again.") from exc
+
+    if not payload.get("email") or not payload.get("email_verified"):
+        raise GoogleLoginError("Your Google account's email isn't verified, so it can't be used to sign in.")
 
     email = payload["email"]
     full_name = payload.get("name", email.split("@")[0])

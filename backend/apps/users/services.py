@@ -79,9 +79,11 @@ class GoogleLoginError(ValueError):
     """A Google sign-in that can't be completed; the message is safe to show."""
 
 
-# Google's servers and the user's PC clock are rarely in perfect sync; without
-# some leeway a fresh token is rejected as "used too early".
-GOOGLE_CLOCK_SKEW_SECONDS = 10
+# Google's servers and the machine's clock are rarely in perfect sync; without
+# leeway a fresh token is rejected as "used too early" (seen for real with a
+# PC clock ~4.5 min slow). 300s matches the default acceptable skew of Google's
+# own GoogleIdTokenVerifier; tokens are still bounded by their 1h lifetime.
+GOOGLE_CLOCK_SKEW_SECONDS = 300
 
 
 def google_login(*, id_token_str: str) -> User:

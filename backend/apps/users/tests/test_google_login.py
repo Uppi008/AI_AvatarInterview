@@ -34,7 +34,7 @@ class TestGoogleLogin:
         assert SocialAccount.objects.filter(user=user, provider_uid="google-uid-1").exists()
         # Verified against our client ID, with leeway for a slightly-off PC clock.
         assert verify.call_args.args[2] == CLIENT_ID
-        assert verify.call_args.kwargs["clock_skew_in_seconds"] > 0
+        assert verify.call_args.kwargs["clock_skew_in_seconds"] == 300
 
     def test_existing_password_account_is_linked_not_duplicated(self, api_client):
         existing = UserFactory(email="new.person@gmail.com")

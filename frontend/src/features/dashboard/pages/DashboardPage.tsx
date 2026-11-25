@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CheckCircle2, Clock, FileText, Trophy } from "lucide-react";
+import { CheckCircle2, Clock, FileText, RotateCcw, Trophy } from "lucide-react";
 
 import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LoadingRegion, Skeleton, SkeletonRow } from "@/components/ui/Skeleton";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,7 +39,7 @@ export function DashboardPage() {
 
 function StudentDashboard() {
   const { t } = useTranslation();
-  const { sessions, reports, activeResume, loading, error } = useDashboardData();
+  const { sessions, reports, activeResume, loading, error, retry } = useDashboardData();
 
   const completedCount = sessions.filter((s) => s.status === "completed").length;
   const upcomingCount = sessions.filter((s) => s.status === "scheduled").length;
@@ -118,7 +119,17 @@ function StudentDashboard() {
       >
         <WelcomeCard completedCount={completedCount} averageScore={averageScore} hasResume={activeResume !== null} />
 
-        {error && <Alert>{error}</Alert>}
+        {error && (
+          <Alert>
+            <span className="flex flex-wrap items-center justify-between gap-2">
+              {error}
+              <Button size="sm" variant="outline" onClick={retry}>
+                <RotateCcw className="h-3.5 w-3.5" />
+                {t("common.tryAgain", "Try again")}
+              </Button>
+            </span>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           <motion.div variants={itemVariants} className="h-full">
